@@ -1,0 +1,12 @@
+[workspace]
+members = ["typesensei_derive", "typesensei"]
+
+[workspace.package]
+edition = "2021"
+authors = ["PoOnesNerfect <jack.y.l.dev@gmail.com>"]
+description = "Typesense client library"
+documentation = "https://docs.rs/typesensei/"
+repository = "https://github.com/PoOnesNerfect/typesensei"
+homepage = "https://github.com/PoOnesNerfect/typesensei"
+license = "MIT"
+readme = "README.md"
