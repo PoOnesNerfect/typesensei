@@ -8,7 +8,7 @@ documentation = "https://docs.rs/typesensei_derive"
 repository = "https://github.com/PoOnesNerfect/typesensei"
 homepage = "https://github.com/PoOnesNerfect/typesensei"
 license = "MIT"
-readme = "README.md"
+readme = "../README.md"
 categories = ["web-programming", "api-bindings"]
 keywords = ["typesense"]
 
@@ -19,7 +19,7 @@ proc-macro = true
 
 [dependencies]
 darling = { version = "0.14" }
-syn = { version = "1.0", features = ["full", "extra-traits"] }
+syn = { version = "1.0", features = ["full"] }
 quote = "1.0"
 proc-macro2 = { version = "1.0" }
 paste = { version = "1.0" }
