@@ -1,27 +1,55 @@
 use reqwest::header::InvalidHeaderValue;
 use schema::FieldType;
-use serde::{de::DeserializeOwned, Serialize};
+use serde::{Deserialize, Serialize};
 use snafu::Snafu;
 use std::fmt;
 
 pub use typesensei_derive::Typesense;
 
-pub mod api;
 mod client;
+mod field_state;
+pub use client::*;
+pub use field_state::*;
+
+pub mod api;
 pub mod schema;
 
-pub use client::*;
+pub(crate) mod __priv {
+    use super::Typesense;
+    use serde::{Deserialize, Serialize};
+    use std::fmt;
 
-pub trait Typesense: fmt::Debug + Serialize + DeserializeOwned {
+    pub trait TypesenseReq
+    where
+        Self: Typesense + fmt::Debug + Serialize,
+        for<'de> Self: Deserialize<'de>,
+    {
+    }
+
+    impl<T> TypesenseReq for T
+    where
+        T: Typesense + fmt::Debug + Serialize,
+        for<'de> T: Deserialize<'de>,
+    {
+    }
+}
+
+pub trait Typesense: Sized {
+    type Model: TypesenseModel + From<Self>;
     type DocumentId: fmt::Display + fmt::Debug + TypesenseField;
 
     fn schema_name() -> &'static str;
 
     fn schema() -> schema::CollectionSchema<'static>;
+
+    fn model() -> Self::Model {
+        Default::default()
+    }
 }
 
 impl Typesense for serde_json::Value {
-    type DocumentId = i32;
+    type Model = Self;
+    type DocumentId = String;
 
     fn schema_name() -> &'static str {
         "json"
@@ -32,8 +60,29 @@ impl Typesense for serde_json::Value {
     }
 }
 
+pub trait TypesenseModel
+where
+    Self: fmt::Debug + Default + Serialize,
+    for<'de> Self: Deserialize<'de>,
+{
+}
+
+impl TypesenseModel for serde_json::Value {}
+
 pub trait TypesenseField {
     fn field_type() -> FieldType;
+}
+
+impl<T: TypesenseField> TypesenseField for &T {
+    fn field_type() -> FieldType {
+        T::field_type()
+    }
+}
+
+impl<T: TypesenseField> TypesenseField for Option<T> {
+    fn field_type() -> FieldType {
+        T::field_type()
+    }
 }
 
 macro_rules! impl_field {
@@ -54,7 +103,7 @@ macro_rules! impl_field {
     };
 }
 impl_field!(u8, u16, i8, i16, i32 => FieldType::Int32, FieldType::Int32Array);
-impl_field!(u32, i64, isize => FieldType::Int64, FieldType::Int64Array);
+impl_field!(u32, u64, usize, i64, isize => FieldType::Int64, FieldType::Int64Array);
 impl_field!(f32, f64 => FieldType::Float, FieldType::FloatArray);
 impl_field!(&str, String => FieldType::String, FieldType::StringArray);
 impl_field!(bool => FieldType::Bool, FieldType::BoolArray);
@@ -74,6 +123,8 @@ pub enum Error {
         document: String,
         source: serde_json::Error,
     },
+    #[snafu(display("`{name}` is an extension and should not be used as document on its own"))]
+    ExtensionCheck { name: &'static str },
     #[snafu(display("API Key not found"))]
     ApiKeyNotFound,
     #[snafu(display("Hostname not found"))]

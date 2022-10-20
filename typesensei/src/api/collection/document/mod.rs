@@ -1,5 +1,5 @@
 use super::Collection;
-use crate::{api::DocumentResponse, error::*, Client, Error, Typesense};
+use crate::{api::DocumentResponse, error::*, Client, Error, __priv::TypesenseReq};
 use bytes::{BufMut, BytesMut};
 use snafu::ResultExt;
 use std::{fmt, future::Future, iter::once};
@@ -8,17 +8,15 @@ use tracing::instrument;
 type DocumentResult = Result<Vec<DocumentResponse>, Error>;
 const PATH: &'static str = "documents";
 
-mod action;
-pub use action::*;
 mod batch;
 pub use batch::*;
 
 #[derive(Debug, Clone, Copy)]
-pub struct Documents<'a, T: Typesense> {
+pub struct Documents<'a, T: TypesenseReq> {
     collection: Collection<'a, T>,
 }
 
-impl<'a, T: Typesense> Documents<'a, T> {
+impl<'a, T: TypesenseReq> Documents<'a, T> {
     pub(crate) fn new(collection: Collection<'a, T>) -> Documents<'a, T> {
         Self { collection }
     }
@@ -32,9 +30,8 @@ impl<'a, T: Typesense> Documents<'a, T> {
     }
 
     #[instrument]
-    pub async fn retrieve(&self, id: &T::DocumentId) -> Result<T, Error> {
+    pub async fn retrieve(&self, id: T::DocumentId) -> Result<T, Error> {
         let id = id.to_string();
-
         let path = self.path().chain(once(id.as_str()));
 
         let ret = self.client().get(path).await?;
@@ -43,35 +40,36 @@ impl<'a, T: Typesense> Documents<'a, T> {
     }
 
     #[instrument]
-    pub fn create(
-        &'a self,
-        document: &'a T,
-    ) -> DocumentAction<'a, T, impl 'a + Future<Output = Result<(), Error>>> {
-        DocumentAction::new(self, document, self.action(None, document))
+    pub async fn create<M: fmt::Debug + Into<T::Model>>(&self, document: M) -> Result<T, Error> {
+        self.client().post((self.path(), document.into())).await
     }
 
     #[instrument]
-    pub fn upsert(
-        &'a self,
-        document: &'a T,
-    ) -> DocumentAction<'a, T, impl 'a + Future<Output = Result<(), Error>>> {
-        DocumentAction::new(
-            self,
-            document,
-            self.action(Some(("action", "upsert")), document),
-        )
+    pub async fn upsert<M: fmt::Debug + Into<T::Model>>(&self, document: M) -> Result<T, Error> {
+        self.client()
+            .post((self.path(), once(("action", "upsert")), document.into()))
+            .await
     }
 
     #[instrument]
-    pub fn update(
-        &'a self,
-        document: &'a T,
-    ) -> DocumentAction<'a, T, impl 'a + Future<Output = Result<(), Error>>> {
-        DocumentAction::new(
-            self,
-            document,
-            self.action(Some(("action", "update")), document),
-        )
+    pub async fn update<M: fmt::Debug + Into<T::Model>>(
+        &self,
+        id: T::DocumentId,
+        document: M,
+    ) -> Result<T, Error> {
+        let document = document.into();
+        let id = id.to_string();
+        let path = self.path().chain(once(id.as_str()));
+
+        self.client().patch((path, document)).await
+    }
+
+    #[instrument]
+    pub async fn delete(&self, id: T::DocumentId) -> Result<(), Error> {
+        let id = id.to_string();
+        let path = self.path().chain(once(id.as_str()));
+
+        self.client().delete(path).await
     }
 
     #[instrument(skip(documents))]
@@ -79,7 +77,7 @@ impl<'a, T: Typesense> Documents<'a, T> {
         &'a self,
         documents: &'a [&'a T],
     ) -> DocumentBatchAction<'a, T, impl 'a + Future<Output = DocumentResult>> {
-        DocumentBatchAction::new(self, documents, self.batch_action(None, documents))
+        DocumentBatchAction::new(self, None, documents, self.batch_action(None, documents))
     }
 
     #[instrument(skip(documents))]
@@ -87,10 +85,13 @@ impl<'a, T: Typesense> Documents<'a, T> {
         &'a self,
         documents: &'a [&'a T],
     ) -> DocumentBatchAction<'a, T, impl 'a + Future<Output = DocumentResult>> {
+        let action = "upsert";
+
         DocumentBatchAction::new(
             self,
+            Some(action),
             documents,
-            self.batch_action(Some(("action", "upsert")), documents),
+            self.batch_action(Some(("action", action)), documents),
         )
     }
 
@@ -99,21 +100,17 @@ impl<'a, T: Typesense> Documents<'a, T> {
         &'a self,
         documents: &'a [&'a T],
     ) -> DocumentBatchAction<'a, T, impl 'a + Future<Output = DocumentResult>> {
+        let action = "update";
+
         DocumentBatchAction::new(
             self,
+            Some(action),
             documents,
-            self.batch_action(Some(("action", "update")), documents),
+            self.batch_action(Some(("action", action)), documents),
         )
     }
 
-    async fn action(
-        &self,
-        query: impl IntoIterator<Item = (&'a str, &'a str)> + fmt::Debug,
-        document: &T,
-    ) -> Result<(), Error> {
-        self.client().post((self.path(), query, document)).await
-    }
-
+    #[instrument(skip(documents))]
     async fn batch_action(
         &self,
         query: impl IntoIterator<Item = (&'a str, &'a str)> + fmt::Debug,

@@ -1,12 +1,12 @@
 use super::{DocumentResult, Documents};
-use crate::{Error, Typesense};
+use crate::{Error, __priv::TypesenseReq};
 use std::{
     future::{Future, IntoFuture},
     marker::PhantomData,
 };
 
 #[derive(Debug)]
-pub struct DocumentBatchAction<'a, T: Typesense, Fut: 'a> {
+pub struct DocumentBatchAction<'a, T: TypesenseReq, Fut: 'a> {
     api: &'a Documents<'a, T>,
     documents: &'a [&'a T],
     action: Option<&'a str>,
@@ -16,29 +16,22 @@ pub struct DocumentBatchAction<'a, T: Typesense, Fut: 'a> {
     _phantom: PhantomData<Fut>,
 }
 
-impl<'a, T: Typesense, Fut: 'a> DocumentBatchAction<'a, T, Fut> {
+impl<'a, T: TypesenseReq, Fut: 'a> DocumentBatchAction<'a, T, Fut> {
     pub(crate) fn new(
         api: &'a Documents<'a, T>,
+        action: Option<&'a str>,
         documents: &'a [&'a T],
         fut: Fut,
     ) -> DocumentBatchAction<'a, T, Fut> {
         DocumentBatchAction {
             api,
             documents,
-            action: None,
+            action,
             dirty_values: None,
             batch_size: None,
             fut,
             _phantom: PhantomData,
         }
-    }
-
-    pub fn action(
-        mut self,
-        action: &'a str,
-    ) -> DocumentBatchAction<'a, T, impl 'a + Future<Output = DocumentResult>> {
-        self.action.replace(action);
-        self.reset()
     }
 
     pub fn dirty_values(
@@ -75,11 +68,11 @@ impl<'a, T: Typesense, Fut: 'a> DocumentBatchAction<'a, T, Fut> {
         .into_iter()
         .filter_map(|x| x);
 
-        DocumentBatchAction::new(api, documents, api.batch_action(query, documents))
+        DocumentBatchAction::new(api, action, documents, api.batch_action(query, documents))
     }
 }
 
-impl<'a, T: Typesense, Fut: 'a + Future<Output = Result<(), Error>>> IntoFuture
+impl<'a, T: TypesenseReq, Fut: 'a + Future<Output = Result<(), Error>>> IntoFuture
     for DocumentBatchAction<'a, T, Fut>
 {
     type Output = Fut::Output;

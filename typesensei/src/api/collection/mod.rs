@@ -1,4 +1,4 @@
-use crate::{Client, Error, Typesense};
+use crate::{Client, Error, __priv::TypesenseReq};
 use std::{fmt, iter::once, marker::PhantomData};
 use tracing::instrument;
 
@@ -10,12 +10,12 @@ use super::CollectionResponse;
 const PATH: &'static str = "collections";
 
 #[derive(Debug, Clone, Copy)]
-pub struct Collection<'a, T: Typesense> {
+pub struct Collection<'a, T: TypesenseReq> {
     client: &'a Client,
     _phantom: PhantomData<T>,
 }
 
-impl<'a, T: Typesense> Collection<'a, T> {
+impl<'a, T: TypesenseReq> Collection<'a, T> {
     pub(crate) fn new(client: &'a Client) -> Collection<'a, T> {
         Self {
             client,

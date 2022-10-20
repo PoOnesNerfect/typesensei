@@ -1,7 +1,8 @@
 use crate::{
     api::{collection::Collection, collections::Collections},
     error::*,
-    Error, Typesense,
+    Error,
+    __priv::TypesenseReq,
 };
 use bytes::Bytes;
 use reqwest::{header::CONTENT_TYPE, Client as Reqwest, RequestBuilder};
@@ -44,7 +45,7 @@ impl Client {
         &self.api_key
     }
 
-    pub fn collection<'a, T: Typesense>(&'a self) -> Collection<'a, T> {
+    pub fn collection<'a, T: TypesenseReq>(&'a self) -> Collection<'a, T> {
         Collection::new(self)
     }
 
@@ -156,23 +157,6 @@ impl Client {
         R: DeserializeOwned,
     {
         self.action(path_query_body, |url| self.reqwest.delete(url))
-            .await
-    }
-
-    #[instrument(skip(body))]
-    pub(crate) async fn delete_raw<'a, P, Q, Q2, R>(
-        &self,
-        path: P,
-        query: Q,
-        body: impl Into<Bytes>,
-    ) -> Result<R, Error>
-    where
-        P: IntoIterator<Item = &'a str> + fmt::Debug,
-        Q: IntoIterator<Item = Q2> + fmt::Debug,
-        Q2: Serialize + fmt::Debug,
-        R: DeserializeOwned,
-    {
-        self.action_raw(path, query, body, |url| self.reqwest.delete(url))
             .await
     }
 
