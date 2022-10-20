@@ -1,6 +1,6 @@
 [package]
 name = "typesensei"
-version = "0.23.1"
+version = "0.23.0"
 edition = "2021"
 authors = ["PoOnesNerfect <jack.y.l.dev@gmail.com>"]
 description = "Typesense client library"
