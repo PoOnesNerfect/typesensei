@@ -1,15 +1,16 @@
 use my_serde::{Deserialize, Serialize};
 use serde as my_serde;
+use std::time::Instant;
 use typesensei::Typesense;
 
 #[derive(Debug, Serialize, Deserialize, Typesense)]
-pub struct One<S, T> {
+pub struct One {
     field0: u32,
-    #[typesensei(index = false)]
+    #[typesensei(facet = true)]
     field1: String,
     #[serde(flatten)]
-    two: Option<S>,
-    some: Option<T>,
+    json: serde_json::Value,
+    some: Option<u8>,
 }
 
 #[derive(Debug, Serialize, Deserialize, Typesense)]
@@ -19,24 +20,49 @@ pub struct Two {
     field3: Option<String>,
 }
 
-#[test]
-fn test_derive() {
-    let mut one = One::<Two, u8>::model();
+#[tokio::test]
+async fn test_derive() {
+    let client = typesensei::Client::builder()
+        .hostname("http://127.0.0.1:8108")
+        .api_key("xyz")
+        .build()
+        .unwrap();
+
+    // let res = client.collection::<One>().create().await.unwrap();
+
+    // println!("collection: {:#?}", res);
+
+    let mut one = One::model();
     one.field0.set(123);
-    one.some.unset();
-    one.id.set(12);
+    one.field1.set("hello world".to_owned());
+    one.some.set(Some(11));
+    one.json["field2"] = 5332.into();
+    one.json["field3"] = serde_json::json!("something");
 
-    let two = Two {
-        field2: 123,
-        field3: Some("hihi".to_owned()),
-    };
+    let res = client.documents::<One>().create(&one).await.unwrap();
 
-    one.two.replace(two.into());
+    println!("res: {res:#?}");
 
-    let json = serde_json::to_string(&one).unwrap();
-    println!("json: {json}");
+    let mut query = One::query();
+    query.field0.greater_or_equals(123);
+    query.field1.query_by();
+    query.json.filter_by("field2:>=5332".to_owned());
+    query.json.query_by("field3".to_owned());
+    let query = query.q("hello world".to_owned());
 
-    let one: OneModel<TwoModel, u8> = serde_json::from_str(&json).unwrap();
+    println!("q: {}", serde_json::to_string_pretty(&query).unwrap());
 
-    println!("one: {one:#?}");
+    let res = client.documents::<One>().search(&query).await.unwrap();
+
+    println!("res: {:#?}", res);
+
+    // let doc = client
+    //     .collection::<One>()
+    //     .documents()
+    //     .retrieve("1")
+    //     .await
+    //     .unwrap();
+
+    // println!("doc: {:?}", doc);
+    // println!("schema: {:#?}", One::schema());
 }

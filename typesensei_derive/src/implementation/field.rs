@@ -2,8 +2,14 @@ use darling::FromField;
 use quote::format_ident;
 use syn::Ident;
 
+pub fn fields_has_id(fields: &[Field]) -> bool {
+    fields
+        .iter()
+        .any(|f| f.field == "id" || f.rename.as_ref().map(|r| r == "id").unwrap_or_default())
+}
+
 #[derive(FromField, Clone)]
-#[darling(attributes(serde, typesense))]
+#[darling(attributes(serde, typesensei))]
 pub struct Field {
     pub ident: Option<syn::Ident>,
     #[darling(skip, default = "dummy_ident")]

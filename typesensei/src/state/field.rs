@@ -1,11 +1,17 @@
 use serde::{de::Deserializer, Deserialize, Serialize};
 use std::mem;
-
-use crate::TypesenseField;
+use crate::traits::TypesenseField;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
-pub struct FieldState<T> {
-    state: FieldStateInner<T>,
+pub enum FieldState<T> {
+    Set(T),
+    NotSet,
+}
+
+impl<T> Default for FieldState<T> {
+    fn default() -> Self {
+        Self::NotSet
+    }
 }
 
 impl<T> From<Option<T>> for FieldState<T> {
@@ -29,7 +35,10 @@ impl<T: Serialize> Serialize for FieldState<T> {
     where
         S: serde::Serializer,
     {
-        self.state.serialize(serializer)
+        match self {
+            FieldState::Set(t) => t.serialize(serializer),
+            FieldState::NotSet => serializer.serialize_none(),
+        }
     }
 }
 
@@ -46,78 +55,48 @@ impl<'de, T: Deserialize<'de>> Deserialize<'de> for FieldState<T> {
     }
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
-enum FieldStateInner<T> {
-    Set(T),
-    NotSet,
-}
-
-impl<T> Default for FieldState<T> {
-    fn default() -> Self {
-        Self {
-            state: FieldStateInner::NotSet,
-        }
-    }
-}
-
-impl<T: Serialize> Serialize for FieldStateInner<T> {
-    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
-    where
-        S: serde::Serializer,
-    {
-        match self {
-            FieldStateInner::Set(t) => t.serialize(serializer),
-            FieldStateInner::NotSet => serializer.serialize_none(),
-        }
-    }
-}
-
 impl<T> FieldState<T> {
     pub fn new(value: T) -> Self {
-        Self {
-            state: FieldStateInner::Set(value),
-        }
+        FieldState::Set(value)
     }
 
     pub fn set(&mut self, value: T) -> &mut Self {
-        let _ = mem::replace(&mut self.state, FieldStateInner::Set(value));
+        *self = FieldState::Set(value);
 
         self
     }
 
     pub fn unset(&mut self) -> &mut Self {
-        let _ = mem::replace(&mut self.state, FieldStateInner::NotSet);
+        *self = FieldState::NotSet;
 
         self
     }
 
     pub fn is_set(&self) -> bool {
-        matches!(self.state, FieldStateInner::Set(_))
+        matches!(self, FieldState::Set(_))
     }
 
     pub fn not_set() -> Self {
-        Self {
-            state: FieldStateInner::NotSet,
-        }
+        FieldState::NotSet
     }
 
     pub fn is_not_set(&self) -> bool {
-        matches!(self.state, FieldStateInner::NotSet)
+        matches!(self, FieldState::NotSet)
     }
 
     pub fn take(&mut self) -> Option<T> {
-        let ret = mem::replace(&mut self.state, FieldStateInner::NotSet);
+        let ret = mem::replace(self, FieldState::NotSet);
 
         match ret {
-            FieldStateInner::Set(t) => Some(t),
-            FieldStateInner::NotSet => None,
+            FieldState::Set(t) => Some(t),
+            FieldState::NotSet => None,
         }
     }
 
     pub fn value(&self) -> Option<&T> {
-        match &self.state {
-            FieldStateInner::Set(t) => Some(t),
-            FieldStateInner::NotSet => None,
+        match self {
+            FieldState::Set(t) => Some(t),
+            FieldState::NotSet => None,
         }
     }
 
@@ -132,9 +111,9 @@ impl<T> FieldState<T> {
 
 impl<T> FieldState<Option<T>> {
     pub fn is_inner_option_none(&self) -> bool {
-        match &self.state {
-            FieldStateInner::Set(t) => t.is_none(),
-            FieldStateInner::NotSet => true,
+        match self {
+            FieldState::Set(t) => t.is_none(),
+            FieldState::NotSet => true,
         }
     }
 }

@@ -2,9 +2,6 @@ use crate::{Client, Error, __priv::TypesenseReq};
 use std::{fmt, iter::once, marker::PhantomData};
 use tracing::instrument;
 
-pub mod document;
-use document::*;
-
 use super::CollectionResponse;
 
 const PATH: &'static str = "collections";
@@ -23,7 +20,7 @@ impl<'a, T: TypesenseReq> Collection<'a, T> {
         }
     }
 
-    pub fn path(&self) -> impl Iterator<Item = &'a str> + fmt::Debug {
+    fn path(&self) -> impl Iterator<Item = &'a str> + fmt::Debug {
         [PATH, T::schema_name()].into_iter()
     }
 
@@ -34,10 +31,6 @@ impl<'a, T: TypesenseReq> Collection<'a, T> {
 
     #[instrument]
     pub async fn create(&self) -> Result<CollectionResponse, Error> {
-        self.client.post((once(PATH), &T::schema())).await
-    }
-
-    pub fn documents(self) -> Documents<'a, T> {
-        Documents::new(self)
+        self.client.post((&T::schema(), once(PATH))).await
     }
 }

@@ -1,4 +1,4 @@
-use super::{case::RenameRule, Field};
+use super::{super::case::RenameRule, Field};
 use darling::ToTokens;
 use quote::quote;
 use syn::{
@@ -10,7 +10,8 @@ pub struct ImplTypesense<'a> {
     pub ident: &'a Ident,
     pub generics: &'a Generics,
     pub id_type: &'a Type,
-    pub generic_model_type: &'a Type,
+    pub model_associated_type: &'a Type,
+    pub query_associated_type: &'a Type,
     pub schema_name: &'a String,
     pub fields: &'a Vec<Field>,
     pub case: &'a RenameRule,
@@ -22,7 +23,8 @@ impl<'a> ToTokens for ImplTypesense<'a> {
             ident,
             generics,
             id_type,
-            generic_model_type,
+            model_associated_type,
+            query_associated_type,
             schema_name,
             fields,
             case,
@@ -30,21 +32,21 @@ impl<'a> ToTokens for ImplTypesense<'a> {
 
         let (impl_generics, type_generics, where_clause) = generics.split_for_impl();
 
-        let fields_impl = FieldImpl::new(fields, case);
+        let fields_impl = FieldImpl::new(fields, case, id_type);
 
         tokens.extend(quote! {
             impl #impl_generics ::typesensei::Typesense for #ident #type_generics
             #where_clause
             {
-                type DocumentId = #id_type;
-                type Model = #generic_model_type;
+                type Model = #model_associated_type;
+                type Query = #query_associated_type;
 
                 fn schema_name() -> &'static str {
                     #schema_name
                 }
 
                 fn schema() -> typesensei::schema::CollectionSchema<'static> {
-                    use ::typesensei::{Typesense, TypesenseField};
+                    use ::typesensei::{Typesense, traits::TypesenseField};
                     ::typesensei::schema::CollectionSchema::new(Self::schema_name())
                     #fields_impl
                 }
@@ -54,23 +56,41 @@ impl<'a> ToTokens for ImplTypesense<'a> {
 }
 
 struct FieldImpl<'a> {
+    id_type: &'a Type,
     fields: &'a Vec<Field>,
     case: &'a RenameRule,
 }
 
 impl<'a> FieldImpl<'a> {
-    fn new(fields: &'a Vec<Field>, case: &'a RenameRule) -> Self {
-        Self { fields, case }
+    fn new(fields: &'a Vec<Field>, case: &'a RenameRule, id_type: &'a Type) -> Self {
+        Self {
+            fields,
+            case,
+            id_type,
+        }
     }
 }
 
 impl<'a> ToTokens for FieldImpl<'a> {
     fn to_tokens(&self, tokens: &mut proc_macro2::TokenStream) {
-        for field in self.fields {
-            if field.skip {
-                continue;
-            }
+        // inject id field if not exists
+        if !self
+            .fields
+            .iter()
+            .any(|f| f.field == "id" || f.rename.as_ref().map(|r| r == "id").unwrap_or_default())
+        {
+            let id_type = self.id_type;
+            tokens.extend(quote! {
+                .field(::typesensei::schema::Field {
+                    name: "id",
+                    field_type: < #id_type >::field_type(),
+                    facet: None,
+                    index: None
+                })
+            });
+        }
 
+        for field in self.fields {
             if field.flatten {
                 impl_flatten_field(&field, tokens);
             } else {

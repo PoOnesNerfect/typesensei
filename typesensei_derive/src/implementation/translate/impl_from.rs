@@ -7,7 +7,7 @@ pub struct ImplFrom<'a> {
     pub merged_impl_generics: &'a ImplGenerics<'a>,
     pub ident: &'a Ident,
     pub model_ident: &'a Ident,
-    pub type_generics: &'a TypeGenerics<'a>,
+    pub main_type_generics: &'a TypeGenerics<'a>,
     pub model_type_generics: &'a TypeGenerics<'a>,
     pub merged_where_clause: &'a Option<&'a WhereClause>,
     pub fields: &'a Vec<Field>,
@@ -19,19 +19,19 @@ impl<'a> ToTokens for ImplFrom<'a> {
             merged_impl_generics,
             ident,
             model_ident,
-            type_generics,
+            main_type_generics,
             model_type_generics,
             merged_where_clause,
             fields,
         } = self;
 
         tokens.extend(quote! {
-            impl #merged_impl_generics From<#ident #type_generics> for #model_ident #model_type_generics
+            impl #merged_impl_generics From<#ident #main_type_generics> for #model_ident #model_type_generics
             #merged_where_clause
         });
 
         Brace::default().surround(tokens, |braces| {
-            braces.extend(quote!(fn from(other: #ident #type_generics) -> Self));
+            braces.extend(quote!(fn from(other: #ident #main_type_generics) -> Self));
 
             Brace::default().surround(braces, |braces| {
                 braces.extend(quote!(Self));
@@ -65,15 +65,11 @@ impl<'a> ToTokens for FieldImpl<'a> {
             .any(|f| f.field == "id" || f.rename.as_ref().map(|r| r == "id").unwrap_or_default())
         {
             tokens.extend(quote! {
-                id : ::typesensei::FieldState::not_set(),
+                id : ::typesensei::state::FieldState::not_set(),
             });
         }
 
         for field in self.fields {
-            if field.skip {
-                continue;
-            }
-
             if field.flatten {
                 impl_flatten_field(&field, tokens);
             } else {
@@ -103,6 +99,6 @@ fn impl_field(field: &Field, tokens: &mut proc_macro2::TokenStream) {
     let Field { field, .. } = field;
 
     tokens.extend(quote! {
-        #field : ::typesensei::FieldState::new(other. #field),
+        #field : ::typesensei::state::FieldState::new(other. #field),
     });
 }

@@ -5,10 +5,10 @@ use syn::{token::Brace, Ident, ImplGenerics, Path, Token, Type, WhereClause};
 
 pub struct StructModel<'a> {
     pub serde: &'a Path,
-    pub model_ident: &'a Ident,
-    pub model_impl_generics: &'a ImplGenerics<'a>,
-    pub model_struct_where_clause: &'a Option<WhereClause>,
-    pub model_fields: &'a Vec<Field>,
+    pub ident: &'a Ident,
+    pub impl_generics: &'a ImplGenerics<'a>,
+    pub where_clause: &'a Option<WhereClause>,
+    pub fields: &'a Vec<Field>,
     pub rename_all: &'a Option<String>,
     pub id: &'a Type,
 }
@@ -17,10 +17,10 @@ impl<'a> ToTokens for StructModel<'a> {
     fn to_tokens(&self, tokens: &mut proc_macro2::TokenStream) {
         let Self {
             serde,
-            model_ident,
-            model_impl_generics,
-            model_struct_where_clause,
-            model_fields,
+            ident,
+            impl_generics,
+            where_clause,
+            fields,
             rename_all,
             id,
         } = self;
@@ -30,11 +30,11 @@ impl<'a> ToTokens for StructModel<'a> {
         tokens.extend(quote! {
             #hash [derive(Debug, Default, #serde ::Serialize, #serde ::Deserialize)]
             #rename_all
-            pub struct #model_ident #model_impl_generics #model_struct_where_clause
+            pub struct #ident #impl_generics #where_clause
         });
 
         Brace::default().surround(tokens, |braces| {
-            FieldsImpl::new(model_fields, &hash, id).to_tokens(braces);
+            FieldsImpl::new(fields, &hash, id).to_tokens(braces);
         });
     }
 }
@@ -62,16 +62,12 @@ impl<'a> ToTokens for FieldsImpl<'a> {
             let hash = self.hash;
             let id = self.id;
             tokens.extend(quote! {
-                #hash [serde(skip_serializing_if = "::typesensei::FieldState::is_not_set")]
-                pub id : ::typesensei::FieldState<#id>,
+                #hash [serde(skip_serializing_if = "::typesensei::state::FieldState::is_not_set")]
+                pub id : ::typesensei::state::FieldState<#id>,
             });
         }
 
         for field in self.fields {
-            if field.skip {
-                continue;
-            }
-
             if field.flatten {
                 impl_flatten_field(&field, self.hash, tokens);
             } else {
@@ -94,24 +90,24 @@ fn impl_flatten_field(field: &Field, hash: &Token![#], tokens: &mut proc_macro2:
         if *is_option {
             tokens.extend(quote! {
                 #hash [serde(flatten)]
-                #field : Option<#ty>,
+                pub #field : Option<#ty>,
             });
         } else {
             tokens.extend(quote! {
                 #hash [serde(flatten)]
-                #field : #ty,
+                pub #field : #ty,
             });
         }
     } else {
         if *is_option {
             tokens.extend(quote! {
                 #hash [serde(flatten)]
-                #field : Option<#ty>,
+                pub #field : Option<<#ty as ::typesensei::Typesense>::Model>,
             });
         } else {
             tokens.extend(quote! {
                 #hash [serde(flatten)]
-                #field : #ty,
+                pub #field : <#ty as ::typesensei::Typesense>::Model,
             });
         }
     }
@@ -127,10 +123,10 @@ fn impl_field(field: &Field, hash: &Token![#], tokens: &mut proc_macro2::TokenSt
     } = field;
 
     if *is_option {
-        tokens.extend(quote! (#hash [serde(skip_serializing_if = "::typesensei::FieldState::is_inner_option_none")]));
+        tokens.extend(quote! (#hash [serde(skip_serializing_if = "::typesensei::state::FieldState::is_inner_option_none")]));
     } else {
         tokens.extend(
-            quote!(#hash [serde(skip_serializing_if = "::typesensei::FieldState::is_not_set")]),
+            quote!(#hash [serde(skip_serializing_if = "::typesensei::state::FieldState::is_not_set")]),
         );
     }
 
@@ -138,6 +134,6 @@ fn impl_field(field: &Field, hash: &Token![#], tokens: &mut proc_macro2::TokenSt
 
     tokens.extend(quote! {
         #rename
-        pub #field : ::typesensei::FieldState<#ty>,
+        pub #field : ::typesensei::state::FieldState<#ty>,
     });
 }

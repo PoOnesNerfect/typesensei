@@ -8,7 +8,7 @@ use std::{
 #[derive(Debug)]
 pub struct DocumentBatchAction<'a, T: TypesenseReq, Fut: 'a> {
     api: &'a Documents<'a, T>,
-    documents: &'a [&'a T],
+    documents: &'a [&'a T::Model],
     action: Option<&'a str>,
     dirty_values: Option<&'a str>,
     batch_size: Option<&'a str>,
@@ -20,7 +20,7 @@ impl<'a, T: TypesenseReq, Fut: 'a> DocumentBatchAction<'a, T, Fut> {
     pub(crate) fn new(
         api: &'a Documents<'a, T>,
         action: Option<&'a str>,
-        documents: &'a [&'a T],
+        documents: &'a [&'a T::Model],
         fut: Fut,
     ) -> DocumentBatchAction<'a, T, Fut> {
         DocumentBatchAction {
@@ -61,12 +61,10 @@ impl<'a, T: TypesenseReq, Fut: 'a> DocumentBatchAction<'a, T, Fut> {
         } = self;
 
         let query = [
-            action.map(|x| ("action", x)),
-            dirty_values.map(|x| ("dirty_values", x)),
-            batch_size.map(|x| ("batch_size", x)),
-        ]
-        .into_iter()
-        .filter_map(|x| x);
+            ("action", action),
+            ("dirty_values", dirty_values),
+            ("batch_size", batch_size),
+        ];
 
         DocumentBatchAction::new(api, action, documents, api.batch_action(query, documents))
     }
