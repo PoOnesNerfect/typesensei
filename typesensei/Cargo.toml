@@ -1,6 +1,6 @@
 [package]
 name = "typesensei"
-version = "0.1.1"
+version = "0.1.2"
 edition = "2021"
 authors = ["PoOnesNerfect <jack.y.l.dev@gmail.com>"]
 description = "Typesense client library"
@@ -15,7 +15,7 @@ keywords = ["typesense"]
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-typesensei_derive = { version = "=0.1.1", path = "../typesensei_derive" }
+typesensei_derive = { version = "=0.1.2", path = "../typesensei_derive" }
 
 bytes = "1.2"
 reqwest = { version = "0.11", features = ["json"] }
