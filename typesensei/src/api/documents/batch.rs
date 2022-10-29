@@ -1,5 +1,5 @@
 use super::{DocumentResult, Documents};
-use crate::{Error, __priv::TypesenseReq};
+use crate::__priv::TypesenseReq;
 use std::{
     future::{Future, IntoFuture},
     marker::PhantomData,
@@ -70,7 +70,7 @@ impl<'a, T: TypesenseReq, Fut: 'a> DocumentBatchAction<'a, T, Fut> {
     }
 }
 
-impl<'a, T: TypesenseReq, Fut: 'a + Future<Output = Result<(), Error>>> IntoFuture
+impl<'a, T: TypesenseReq, Fut: 'a + Future<Output = DocumentResult>> IntoFuture
     for DocumentBatchAction<'a, T, Fut>
 {
     type Output = Fut::Output;
