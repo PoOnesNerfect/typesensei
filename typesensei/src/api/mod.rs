@@ -41,6 +41,7 @@ pub struct SearchHit<T> {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SearchHighlight {
     pub field: String,
+    pub indices: Option<Vec<usize>>,
     pub matched_tokens: Vec<String>,
     pub snippet: String,
 }

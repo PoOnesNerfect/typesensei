@@ -2,7 +2,7 @@ use super::{Client, NodeConfig, CONTENT_TYPE};
 use crate::{error::*, Error};
 use reqwest::header::{HeaderMap, HeaderValue};
 use snafu::{OptionExt, ResultExt};
-use std::sync::Arc;
+use std::{env, sync::Arc};
 use tracing::instrument;
 
 pub const TYPESENSE_API_KEY_HEADER_NAME: &str = "X-TYPESENSE-API-KEY";
@@ -20,8 +20,8 @@ impl ClientBuilder {
     pub fn new() -> Self {
         Self {
             reqwest_builder: None,
-            hostname: None,
-            api_key: None,
+            hostname: env::var("TYPESENSE_HOSTNAME").ok(),
+            api_key: env::var("TYPESENSE_API_KEY").ok(),
             nodes: Vec::new(),
         }
     }

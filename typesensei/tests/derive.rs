@@ -1,7 +1,6 @@
 use my_serde::{Deserialize, Serialize};
 use serde as my_serde;
-use std::time::Instant;
-use typesensei::Typesense;
+use typesensei::{state::FieldState, Typesense};
 
 #[derive(Debug, Serialize, Deserialize, Typesense)]
 pub struct One {
@@ -30,8 +29,6 @@ async fn test_derive() {
 
     // let res = client.collection::<One>().create().await.unwrap();
 
-    // println!("collection: {:#?}", res);
-
     let mut one = One::model();
     one.field0.set(123);
     one.field1.set("hello world".to_owned());
@@ -44,10 +41,12 @@ async fn test_derive() {
     println!("res: {res:#?}");
 
     let mut query = One::query();
-    query.field0.greater_or_equals(123);
+    query.field0.greater_or_equals(123).sort_asc();
     query.field1.query_by();
-    query.json.filter_by("field2:>=5332".to_owned());
-    query.json.query_by("field3".to_owned());
+    query
+        .json
+        .filter_by("field2:>=5332".to_owned())
+        .query_by("field3".to_owned());
     let query = query.q("hello world".to_owned());
 
     println!("q: {}", serde_json::to_string_pretty(&query).unwrap());

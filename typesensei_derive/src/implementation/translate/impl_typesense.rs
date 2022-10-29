@@ -41,6 +41,7 @@ impl<'a> ToTokens for ImplTypesense<'a> {
                 type Model = #model_associated_type;
                 type Query = #query_associated_type;
 
+                #[inline(always)]
                 fn schema_name() -> &'static str {
                     #schema_name
                 }
