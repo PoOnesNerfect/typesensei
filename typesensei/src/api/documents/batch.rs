@@ -8,7 +8,7 @@ use std::{
 #[derive(Debug)]
 pub struct DocumentBatchAction<'a, T: TypesenseReq, Fut: 'a> {
     api: &'a Documents<'a, T>,
-    documents: &'a [&'a T::Model],
+    documents: &'a [T::Model],
     action: Option<&'a str>,
     dirty_values: Option<&'a str>,
     batch_size: Option<&'a str>,
@@ -20,7 +20,7 @@ impl<'a, T: TypesenseReq, Fut: 'a> DocumentBatchAction<'a, T, Fut> {
     pub(crate) fn new(
         api: &'a Documents<'a, T>,
         action: Option<&'a str>,
-        documents: &'a [&'a T::Model],
+        documents: &'a [T::Model],
         fut: Fut,
     ) -> DocumentBatchAction<'a, T, Fut> {
         DocumentBatchAction {

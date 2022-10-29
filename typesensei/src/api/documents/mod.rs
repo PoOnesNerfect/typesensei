@@ -81,7 +81,7 @@ impl<'a, T: TypesenseReq> Documents<'a, T> {
     #[instrument(skip(documents))]
     pub fn batch_create(
         &'a self,
-        documents: &'a [&'a T::Model],
+        documents: &'a [T::Model],
     ) -> DocumentBatchAction<'a, T, impl 'a + Future<Output = DocumentResult>> {
         DocumentBatchAction::new(self, None, documents, self.batch_action([], documents))
     }
@@ -89,7 +89,7 @@ impl<'a, T: TypesenseReq> Documents<'a, T> {
     #[instrument(skip(documents))]
     pub fn batch_upsert(
         &'a self,
-        documents: &'a [&'a T::Model],
+        documents: &'a [T::Model],
     ) -> DocumentBatchAction<'a, T, impl 'a + Future<Output = DocumentResult>> {
         let action = Some("upsert");
 
@@ -104,7 +104,7 @@ impl<'a, T: TypesenseReq> Documents<'a, T> {
     #[instrument(skip(documents))]
     pub fn batch_update(
         &'a self,
-        documents: &'a [&'a T::Model],
+        documents: &'a [T::Model],
     ) -> DocumentBatchAction<'a, T, impl 'a + Future<Output = DocumentResult>> {
         let action = Some("update");
 
@@ -119,7 +119,7 @@ impl<'a, T: TypesenseReq> Documents<'a, T> {
     #[instrument(skip(documents))]
     pub fn batch_emplace(
         &'a self,
-        documents: &'a [&'a T::Model],
+        documents: &'a [T::Model],
     ) -> DocumentBatchAction<'a, T, impl 'a + Future<Output = DocumentResult>> {
         let action = Some("emplace");
 
@@ -135,7 +135,7 @@ impl<'a, T: TypesenseReq> Documents<'a, T> {
     async fn batch_action<const N: usize>(
         &'a self,
         query: QueryPair<'a, N>,
-        documents: &'a [&'a T::Model],
+        documents: &'a [T::Model],
     ) -> DocumentResult {
         let path = self.path().into_iter().chain(once("import"));
 
