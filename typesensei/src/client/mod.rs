@@ -1,5 +1,5 @@
 use crate::{
-    api::{collection::Collection, documents::Documents, CollectionResponse},
+    api::{collection::Collection, documents::Documents, CollectionResponse, keys::Keys},
     error::*,
     Error,
     __priv::TypesenseReq,
@@ -50,7 +50,11 @@ impl Client {
         &self.api_key
     }
 
-    pub async fn collections(&self) -> Result<Vec<CollectionResponse>, Error> {
+    pub fn keys<'a>(&'a self) -> Keys<'a> {
+        Keys::new(self)
+    }
+
+    pub async fn retrieve_collections(&self) -> Result<Vec<CollectionResponse>, Error> {
         self.get(once("collections")).await
     }
 
@@ -95,16 +99,15 @@ impl Client {
     }
 
     #[instrument(skip(body))]
-    pub(crate) async fn post_raw<'a, P, Q, const N: usize, R>(
+    pub(crate) async fn post_raw<'a, P, Q, const N: usize>(
         &'a self,
         path: P,
         body: impl Into<Bytes>,
         query: QueryPair<Q, N>,
-    ) -> Result<R, Error>
+    ) -> Result<String, Error>
     where
         P: IntoIterator<Item = &'a str> + fmt::Debug,
         Q: Serialize + fmt::Debug,
-        R: DeserializeOwned,
     {
         self.action_raw(path, body, query, |url| self.reqwest.post(url))
             .await
@@ -126,16 +129,15 @@ impl Client {
     }
 
     #[instrument(skip(body))]
-    pub(crate) async fn patch_raw<'a, P, Q, const N: usize, R>(
+    pub(crate) async fn patch_raw<'a, P, Q, const N: usize>(
         &'a self,
         path: P,
         body: impl Into<Bytes>,
         query: QueryPair<Q, N>,
-    ) -> Result<R, Error>
+    ) -> Result<String, Error>
     where
         P: IntoIterator<Item = &'a str> + fmt::Debug,
         Q: Serialize + fmt::Debug,
-        R: DeserializeOwned,
     {
         self.action_raw(path, body, query, |url| self.reqwest.patch(url))
             .await
@@ -168,7 +170,7 @@ impl Client {
         R: DeserializeOwned,
         F: FnOnce(&str) -> RequestBuilder,
     {
-        let res: TypesenseResult<R> = path_query_body
+        let res: R = path_query_body
             .into()
             .build(self.hostname.as_str(), |url| f(url))
             .send()
@@ -176,22 +178,22 @@ impl Client {
             .context(ActionFailedSnafu)?
             .json()
             .await
-            .context(DeserializeFailedSnafu)?;
+            .context(DeserializeBodySnafu)?;
 
-        res.into_res()
+        // res.into_res()
+        Ok(res)
     }
 
-    async fn action_raw<'a, P, Q, const N: usize, R, F>(
+    async fn action_raw<'a, P, Q, const N: usize, F>(
         &'a self,
         path: P,
         body: impl Into<Bytes>,
         query: QueryPair<Q, N>,
         f: F,
-    ) -> Result<R, Error>
+    ) -> Result<String, Error>
     where
         P: IntoIterator<Item = &'a str> + fmt::Debug,
         Q: Serialize + fmt::Debug,
-        R: DeserializeOwned,
         F: FnOnce(&str) -> RequestBuilder,
     {
         let hostname = self.hostname.as_str();
@@ -205,16 +207,13 @@ impl Client {
 
         let req = f(&url).body(body.into()).header(CONTENT_TYPE, "text/plain");
 
-        let res: TypesenseResult<R> = req
-            .query(query.as_ref())
+        req.query(query.as_ref())
             .send()
             .await
             .context(ActionFailedSnafu)?
-            .json()
+            .text()
             .await
-            .context(DeserializeFailedSnafu)?;
-
-        res.into_res()
+            .context(DeserializeBodySnafu)
     }
 }
 

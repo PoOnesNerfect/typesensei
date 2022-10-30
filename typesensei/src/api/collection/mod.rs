@@ -33,4 +33,9 @@ impl<'a, T: TypesenseReq> Collection<'a, T> {
     pub async fn create(&self) -> Result<CollectionResponse, Error> {
         self.client.post((&T::schema(), once(PATH))).await
     }
+
+    #[instrument]
+    pub async fn delete(&self) -> Result<CollectionResponse, Error> {
+        self.client.delete(self.path()).await
+    }
 }

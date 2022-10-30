@@ -1,3 +1,5 @@
+use crate::implementation::{field_has_id, fields_has_id};
+
 use super::{super::case::RenameRule, Field};
 use darling::ToTokens;
 use quote::quote;
@@ -74,23 +76,6 @@ impl<'a> FieldImpl<'a> {
 
 impl<'a> ToTokens for FieldImpl<'a> {
     fn to_tokens(&self, tokens: &mut proc_macro2::TokenStream) {
-        // inject id field if not exists
-        if !self
-            .fields
-            .iter()
-            .any(|f| f.field == "id" || f.rename.as_ref().map(|r| r == "id").unwrap_or_default())
-        {
-            let id_type = self.id_type;
-            tokens.extend(quote! {
-                .field(::typesensei::schema::Field {
-                    name: "id",
-                    field_type: < #id_type >::field_type(),
-                    facet: None,
-                    index: None
-                })
-            });
-        }
-
         for field in self.fields {
             if field.flatten {
                 impl_flatten_field(&field, tokens);
@@ -161,6 +146,10 @@ fn impl_flatten_field(field: &Field, tokens: &mut proc_macro2::TokenStream) {
 }
 
 fn impl_field(field: &Field, case: &RenameRule, tokens: &mut proc_macro2::TokenStream) {
+    if field_has_id(field) {
+        return;
+    }
+
     let Field {
         field,
         ty,

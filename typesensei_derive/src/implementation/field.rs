@@ -3,9 +3,11 @@ use quote::format_ident;
 use syn::Ident;
 
 pub fn fields_has_id(fields: &[Field]) -> bool {
-    fields
-        .iter()
-        .any(|f| f.field == "id" || f.rename.as_ref().map(|r| r == "id").unwrap_or_default())
+    fields.iter().any(field_has_id)
+}
+
+pub fn field_has_id(field: &Field) -> bool {
+    field.field == "id" || field.rename.as_ref().map(|r| r == "id").unwrap_or_default()
 }
 
 #[derive(FromField, Clone)]

@@ -45,7 +45,7 @@ impl<'a> ToTokens for ImplQuery<'a> {
         });
 
         Brace::default().surround(tokens, |braces| {
-            braces.extend(quote!(fn q(self, query: String) -> ::typesensei::SearchQuery));
+            braces.extend(quote!(pub fn q(self, query: String) -> ::typesensei::SearchQuery));
 
             Brace::default().surround(braces, |braces| {
                 braces.extend(quote! {

@@ -1,16 +1,17 @@
+use super::{ImportResponse, SearchResponse};
 use crate::{error::*, Client, Error, SearchQuery, __priv::TypesenseReq};
 use bytes::{BufMut, BytesMut};
+use futures::stream::StreamExt;
+use serde_json::Value;
 use snafu::ResultExt;
 use std::{fmt, future::Future, io::Write, iter::once, marker::PhantomData};
 use tracing::instrument;
 
-type DocumentResult = Result<Vec<ImportResponse>, Error>;
+type BatchResult = Result<(), Error>;
 type QueryPair<'a, const N: usize> = [(&'static str, Option<&'a str>); N];
 
 mod batch;
 pub use batch::*;
-
-use super::{ImportResponse, SearchResponse};
 
 #[derive(Debug, Clone, Copy)]
 pub struct Documents<'a, T: TypesenseReq> {
@@ -82,7 +83,7 @@ impl<'a, T: TypesenseReq> Documents<'a, T> {
     pub fn batch_create(
         &'a self,
         documents: &'a [T::Model],
-    ) -> DocumentBatchAction<'a, T, impl 'a + Future<Output = DocumentResult>> {
+    ) -> DocumentBatchAction<'a, T, impl 'a + Future<Output = BatchResult>> {
         DocumentBatchAction::new(self, None, documents, self.batch_action([], documents))
     }
 
@@ -90,7 +91,7 @@ impl<'a, T: TypesenseReq> Documents<'a, T> {
     pub fn batch_upsert(
         &'a self,
         documents: &'a [T::Model],
-    ) -> DocumentBatchAction<'a, T, impl 'a + Future<Output = DocumentResult>> {
+    ) -> DocumentBatchAction<'a, T, impl 'a + Future<Output = BatchResult>> {
         let action = Some("upsert");
 
         DocumentBatchAction::new(
@@ -105,7 +106,7 @@ impl<'a, T: TypesenseReq> Documents<'a, T> {
     pub fn batch_update(
         &'a self,
         documents: &'a [T::Model],
-    ) -> DocumentBatchAction<'a, T, impl 'a + Future<Output = DocumentResult>> {
+    ) -> DocumentBatchAction<'a, T, impl 'a + Future<Output = BatchResult>> {
         let action = Some("update");
 
         DocumentBatchAction::new(
@@ -120,7 +121,7 @@ impl<'a, T: TypesenseReq> Documents<'a, T> {
     pub fn batch_emplace(
         &'a self,
         documents: &'a [T::Model],
-    ) -> DocumentBatchAction<'a, T, impl 'a + Future<Output = DocumentResult>> {
+    ) -> DocumentBatchAction<'a, T, impl 'a + Future<Output = BatchResult>> {
         let action = Some("emplace");
 
         DocumentBatchAction::new(
@@ -136,7 +137,7 @@ impl<'a, T: TypesenseReq> Documents<'a, T> {
         &'a self,
         query: QueryPair<'a, N>,
         documents: &'a [T::Model],
-    ) -> DocumentResult {
+    ) -> BatchResult {
         let path = self.path().into_iter().chain(once("import"));
 
         let mut writer = BytesMut::new().writer();
@@ -148,12 +149,44 @@ impl<'a, T: TypesenseReq> Documents<'a, T> {
             writer.write(&[b'\n']).expect("does not return Err ever");
         }
 
-        let ret = self
+        let action = query
+            .iter()
+            .find(|q| q.0 == "action")
+            .map(|q| q.1)
+            .flatten()
+            .unwrap_or("create");
+
+        let body = self
             .client()
             .post_raw(path, writer.into_inner(), query)
             .await?;
 
-        Ok(ret)
+        let mut res = Vec::with_capacity(documents.len());
+
+        for line in body.lines() {
+            res.push(serde_json::from_str(&line).context(DeserializeTextSnafu { text: line })?);
+        }
+
+        import_into_res(action, res)
+    }
+}
+
+fn import_into_res(action: &str, imports: Vec<ImportResponse>) -> Result<(), Error> {
+    let mut errors = Vec::new();
+
+    for (i, import) in imports.into_iter().enumerate() {
+        if !import.success {
+            errors.push((i, import));
+        }
+    }
+
+    if errors.is_empty() {
+        Ok(())
+    } else {
+        Err(Error::BatchActionFailed {
+            action: action.to_owned(),
+            errors,
+        })
     }
 }
 

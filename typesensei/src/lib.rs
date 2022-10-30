@@ -1,3 +1,4 @@
+use api::ImportResponse;
 use reqwest::header::InvalidHeaderValue;
 use serde::{Deserialize, Serialize};
 use serde_with::skip_serializing_none;
@@ -5,6 +6,7 @@ use snafu::Snafu;
 
 mod client;
 pub use client::*;
+pub use reqwest::{Client as Reqwest, ClientBuilder as ReqwestBuilder};
 
 pub mod api;
 pub mod schema;
@@ -68,15 +70,31 @@ macro_rules! impl_search_query {
         #[derive(Debug, Clone, Serialize, Deserialize)]
         pub struct SearchQuery {
             pub q: String,
+            pub page: Option<String>,
+            pub per_page: Option<String>,
             $(
                 pub $f : Option<String>,
             )*
         }
 
         impl SearchQuery {
-            pub fn query_pairs(&self) -> [(&'static str, Option<&str>); impl_search_query!(@n $($f),*)] {
+            pub fn page(mut self, page: usize) -> Self {
+                self.page.replace(page.to_string());
+                self
+            }
+
+            pub fn per_page(mut self, per_page: usize) -> Self {
+                self.per_page.replace(per_page.to_string());
+                self
+            }
+        }
+
+        impl SearchQuery {
+            pub fn query_pairs(&self) -> [(&'static str, Option<&str>); impl_search_query!(@n $($f),*) + 3] {
                 [
                     ("q", Some(&self.q)),
+                    ("page", self.page.as_ref().map(|p| p.as_str())),
+                    ("per_page", self.per_page.as_ref().map(|p| p.as_str())),
                     $(
                         (stringify!($f), self. $f .as_ref().map(|s| s.as_str())),
                     )*
@@ -111,6 +129,8 @@ macro_rules! impl_search_query {
 
                     SearchQuery {
                         q: query,
+                        page: None,
+                        per_page: None,
                         $(
                             $f,
                         )*
@@ -145,7 +165,7 @@ macro_rules! impl_search_query {
             }
         }
     };
-    (@n) => (1);
+    (@n) => (0);
     (@n $f:ident $(,)? $($g:ident),*) => {
         1 + impl_search_query!(@n $($g),*)
     };
@@ -262,13 +282,25 @@ pub enum Error {
     #[snafu(display("Request failed to Typesense"))]
     ActionFailed { source: reqwest::Error },
     #[snafu(display("Failed to deserialize response body as json"))]
-    DeserializeFailed { source: reqwest::Error },
+    DeserializeBody { source: reqwest::Error },
+    #[snafu(display("Failed to deserialize text {text} as json"))]
+    DeserializeText {
+        text: String,
+        source: serde_json::Error,
+    },
     #[snafu(display("Failed to parse response as either `message` or `{ret_type}`"))]
     ParseFailed { ret_type: &'static str },
     #[snafu(display("Failed to serialize document {document:?} to json"))]
     DocumentToJson {
         document: String,
         source: serde_json::Error,
+    },
+    #[snafu(display(
+        "Failed to {action} multiple documents. Access individual errors with variant's field `errors`"
+    ))]
+    BatchActionFailed {
+        action: String,
+        errors: Vec<(usize, ImportResponse)>,
     },
     #[snafu(display("{message}"))]
     TypesenseError { message: String },

@@ -1,7 +1,6 @@
-use std::fmt::Display;
-
 use serde::{Deserialize, Serialize};
 use serde_with::skip_serializing_none;
+use std::fmt::Display;
 
 #[skip_serializing_none]
 #[derive(Debug, Clone, Serialize, Deserialize)]

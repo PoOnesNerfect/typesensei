@@ -1,4 +1,4 @@
-use super::{DocumentResult, Documents};
+use super::{BatchResult, Documents};
 use crate::__priv::TypesenseReq;
 use std::{
     future::{Future, IntoFuture},
@@ -37,7 +37,7 @@ impl<'a, T: TypesenseReq, Fut: 'a> DocumentBatchAction<'a, T, Fut> {
     pub fn dirty_values(
         mut self,
         dirty_values: &'a str,
-    ) -> DocumentBatchAction<'a, T, impl 'a + Future<Output = DocumentResult>> {
+    ) -> DocumentBatchAction<'a, T, impl 'a + Future<Output = BatchResult>> {
         self.dirty_values.replace(dirty_values);
         self.reset()
     }
@@ -45,12 +45,12 @@ impl<'a, T: TypesenseReq, Fut: 'a> DocumentBatchAction<'a, T, Fut> {
     pub fn batch_size(
         mut self,
         batch_size: &'a str,
-    ) -> DocumentBatchAction<'a, T, impl 'a + Future<Output = DocumentResult>> {
+    ) -> DocumentBatchAction<'a, T, impl 'a + Future<Output = BatchResult>> {
         self.batch_size.replace(batch_size);
         self.reset()
     }
 
-    fn reset(self) -> DocumentBatchAction<'a, T, impl 'a + Future<Output = DocumentResult>> {
+    fn reset(self) -> DocumentBatchAction<'a, T, impl 'a + Future<Output = BatchResult>> {
         let Self {
             api,
             documents,
@@ -70,7 +70,7 @@ impl<'a, T: TypesenseReq, Fut: 'a> DocumentBatchAction<'a, T, Fut> {
     }
 }
 
-impl<'a, T: TypesenseReq, Fut: 'a + Future<Output = DocumentResult>> IntoFuture
+impl<'a, T: TypesenseReq, Fut: 'a + Future<Output = BatchResult>> IntoFuture
     for DocumentBatchAction<'a, T, Fut>
 {
     type Output = Fut::Output;
