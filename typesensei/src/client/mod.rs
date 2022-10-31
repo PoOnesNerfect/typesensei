@@ -24,7 +24,7 @@ type QueryPair<Q, const N: usize> = [(&'static str, Q); N];
 
 #[derive(Debug, Clone)]
 pub struct Client {
-    reqwest: Reqwest,
+    pub reqwest: Reqwest,
     hostname: Arc<String>,
     api_key: Arc<String>,
 }
@@ -69,7 +69,7 @@ impl Client {
 
 impl Client {
     #[instrument]
-    pub(crate) async fn get<'a, B, P, Q, const N: usize, R>(
+    pub async fn get<'a, B, P, Q, const N: usize, R>(
         &self,
         path_query_body: impl Into<BodyPathQuery<'a, B, P, Q, N>> + fmt::Debug,
     ) -> Result<R, Error>
@@ -84,7 +84,7 @@ impl Client {
     }
 
     #[instrument]
-    pub(crate) async fn post<'a, B, P, Q, const N: usize, R>(
+    pub async fn post<'a, B, P, Q, const N: usize, R>(
         &self,
         path_query_body: impl Into<BodyPathQuery<'a, B, P, Q, N>> + fmt::Debug,
     ) -> Result<R, Error>
@@ -218,7 +218,7 @@ impl Client {
 }
 
 #[derive(Debug)]
-pub(crate) struct BodyPathQuery<'a, B = (), P = Option<&'a str>, Q = &'a str, const N: usize = 0>
+pub struct BodyPathQuery<'a, B = (), P = Option<&'a str>, Q = &'a str, const N: usize = 0>
 where
     B: Serialize + fmt::Debug,
     P: IntoIterator<Item = &'a str>,

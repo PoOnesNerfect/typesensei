@@ -25,6 +25,12 @@ pub struct ImportResponse {
 
 #[skip_serializing_none]
 #[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct MultiSearchResponse<T> {
+    pub results: Vec<SearchResponse<T>>
+}
+
+#[skip_serializing_none]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SearchResponse<T> {
     pub facet_counts: Vec<usize>,
     pub found: usize,

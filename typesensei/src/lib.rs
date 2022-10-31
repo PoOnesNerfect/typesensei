@@ -64,11 +64,18 @@ mod model_trait {
     impl TypesenseModel for serde_json::Value {}
 }
 
+#[skip_serializing_none]
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct MultiSearchQuery {
+    searches: Vec<SearchQuery>,
+}
+
 macro_rules! impl_search_query {
     ($($f:ident : $p:expr),* $(,)?) => {
         #[skip_serializing_none]
         #[derive(Debug, Clone, Serialize, Deserialize)]
         pub struct SearchQuery {
+            pub collection: Option<String>,
             pub q: String,
             pub page: Option<String>,
             pub per_page: Option<String>,
@@ -90,6 +97,17 @@ macro_rules! impl_search_query {
         }
 
         impl SearchQuery {
+            pub fn empty_query_pairs() -> [(&'static str, Option<&'static str>); impl_search_query!(@n $($f),*) + 3] {
+                [
+                    ("q", None),
+                    ("page", None),
+                    ("per_page", None),
+                    $(
+                        (stringify!($f), None),
+                    )*
+                ]
+            }
+
             pub fn query_pairs(&self) -> [(&'static str, Option<&str>); impl_search_query!(@n $($f),*) + 3] {
                 [
                     ("q", Some(&self.q)),
@@ -129,6 +147,7 @@ macro_rules! impl_search_query {
 
                     SearchQuery {
                         q: query,
+                        collection: None,
                         page: None,
                         per_page: None,
                         $(

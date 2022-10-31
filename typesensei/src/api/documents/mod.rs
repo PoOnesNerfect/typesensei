@@ -1,5 +1,5 @@
-use super::{ImportResponse, SearchResponse};
-use crate::{error::*, Client, Error, SearchQuery, __priv::TypesenseReq};
+use super::{ImportResponse, MultiSearchResponse, SearchResponse};
+use crate::{error::*, Client, Error, MultiSearchQuery, SearchQuery, __priv::TypesenseReq};
 use bytes::{BufMut, BytesMut};
 use futures::stream::StreamExt;
 use serde_json::Value;
@@ -54,6 +54,27 @@ impl<'a, T: TypesenseReq> Documents<'a, T> {
         let path = self.path().chain(once("search"));
 
         let ret = self.client().get((path, query.query_pairs())).await?;
+
+        Ok(ret)
+    }
+
+    #[instrument]
+    pub async fn multi_search(
+        &self,
+        common: &Option<SearchQuery>,
+        multi_query: &Option<MultiSearchQuery>,
+    ) -> Result<MultiSearchResponse<T>, Error> {
+        let path = self.path().chain(once("search"));
+        let empty = SearchQuery::empty_query_pairs();
+
+        let ret = self
+            .client()
+            .post((
+                multi_query,
+                path,
+                common.as_ref().map(|c| c.query_pairs()).unwrap_or(empty),
+            ))
+            .await?;
 
         Ok(ret)
     }
