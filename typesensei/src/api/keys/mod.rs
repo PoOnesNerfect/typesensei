@@ -41,15 +41,10 @@ impl<'a> Keys<'a> {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ApiKey {
     pub description: String,
-    pub actions: Vec<ApiAction>,
+    pub actions: Vec<String>,
     pub collections: Vec<String>,
     pub value: Option<String>,
     pub expires_at: Option<u64>,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub enum ApiAction {
-    All,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -67,7 +62,7 @@ pub struct ApiKeyResponses {
 pub struct ApiKeyResponse {
     pub id: usize,
     pub description: String,
-    pub actions: Vec<ApiAction>,
+    pub actions: Vec<String>,
     pub collections: Vec<String>,
     pub value_prefix: String,
 }
