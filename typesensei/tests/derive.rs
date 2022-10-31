@@ -17,6 +17,8 @@ pub struct Two {
     field2: u32,
     #[typesensei(index = false)]
     field3: Option<String>,
+    #[typesensei(index = false)]
+    field4: String,
 }
 
 #[tokio::test]

@@ -167,9 +167,11 @@ fn impl_field(field: &Field, case: &RenameRule, tokens: &mut proc_macro2::TokenS
         case.apply_to_field(&field.to_string())
     };
 
+    let should_be_optional = index.map(|b| !b).unwrap_or(false);
+
     let facet = facet.map(|f| quote!(Some(#f))).unwrap_or(quote!(None));
     let index = index.map(|i| quote!(Some(#i))).unwrap_or(quote!(None));
-    let optional = is_option
+    let optional = (*is_option || should_be_optional)
         .then_some(quote!(Some(true)))
         .unwrap_or(quote!(None));
 
