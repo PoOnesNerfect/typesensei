@@ -54,6 +54,7 @@ pub struct Field<'a> {
     pub name: &'a str,
     pub facet: Option<bool>,
     pub index: Option<bool>,
+    pub optional: Option<bool>,
 }
 
 impl<'a> From<Field<'a>> for FieldOwned {
@@ -63,6 +64,7 @@ impl<'a> From<Field<'a>> for FieldOwned {
             name,
             facet,
             index,
+            optional,
         } = f;
 
         Self {
@@ -70,6 +72,7 @@ impl<'a> From<Field<'a>> for FieldOwned {
             name: name.to_owned(),
             facet,
             index,
+            optional,
         }
     }
 }
@@ -91,6 +94,7 @@ impl<'a> Field<'a> {
             name,
             facet,
             index,
+            optional,
         } = self;
 
         FieldOwned {
@@ -98,6 +102,7 @@ impl<'a> Field<'a> {
             name: (*name).to_owned(),
             facet: *facet,
             index: *index,
+            optional: *optional,
         }
     }
 }
@@ -110,6 +115,7 @@ pub struct FieldOwned {
     pub name: String,
     pub facet: Option<bool>,
     pub index: Option<bool>,
+    pub optional: Option<bool>,
 }
 
 macro_rules! field_init_impl {
@@ -148,6 +154,7 @@ macro_rules! field_init_impl {
                             name,
                             facet: None,
                             index: None,
+                            optional: None,
                         }
                     }
                 }
@@ -162,7 +169,8 @@ macro_rules! field_init_impl {
                             field_type: FieldType::$t,
                             name,
                             facet: None,
-                            index: None
+                            index: None,
+                            optional: None,
                         }
                     }
                 }

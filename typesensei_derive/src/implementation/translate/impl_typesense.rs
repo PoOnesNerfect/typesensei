@@ -155,6 +155,7 @@ fn impl_field(field: &Field, case: &RenameRule, tokens: &mut proc_macro2::TokenS
         ty,
         index,
         facet,
+        is_option,
         default_sorting_field,
         rename,
         ..
@@ -168,13 +169,17 @@ fn impl_field(field: &Field, case: &RenameRule, tokens: &mut proc_macro2::TokenS
 
     let facet = facet.map(|f| quote!(Some(#f))).unwrap_or(quote!(None));
     let index = index.map(|i| quote!(Some(#i))).unwrap_or(quote!(None));
+    let optional = is_option
+        .then_some(quote!(Some(true)))
+        .unwrap_or(quote!(None));
 
     tokens.extend(quote! {
         .field(::typesensei::schema::Field {
             name: #name,
             field_type: < #ty >::field_type(),
             facet: #facet,
-            index: #index
+            index: #index,
+            optional: #optional
         })
     });
 
