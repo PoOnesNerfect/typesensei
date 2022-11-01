@@ -1,5 +1,5 @@
 use crate::{
-    api::{collection::Collection, documents::Documents, CollectionResponse, keys::Keys},
+    api::{collection::Collection, documents::Documents, keys::Keys, CollectionResponse},
     error::*,
     Error,
     __priv::TypesenseReq,
@@ -69,7 +69,7 @@ impl Client {
 
 impl Client {
     #[instrument]
-    pub async fn get<'a, B, P, Q, const N: usize, R>(
+    pub(crate) async fn get<'a, B, P, Q, const N: usize, R>(
         &self,
         path_query_body: impl Into<BodyPathQuery<'a, B, P, Q, N>> + fmt::Debug,
     ) -> Result<R, Error>
@@ -84,7 +84,7 @@ impl Client {
     }
 
     #[instrument]
-    pub async fn post<'a, B, P, Q, const N: usize, R>(
+    pub(crate) async fn post<'a, B, P, Q, const N: usize, R>(
         &self,
         path_query_body: impl Into<BodyPathQuery<'a, B, P, Q, N>> + fmt::Debug,
     ) -> Result<R, Error>
@@ -170,7 +170,7 @@ impl Client {
         R: DeserializeOwned,
         F: FnOnce(&str) -> RequestBuilder,
     {
-        let res: R = path_query_body
+        let res: TypesenseResult<R> = path_query_body
             .into()
             .build(self.hostname.as_str(), |url| f(url))
             .send()
@@ -180,8 +180,7 @@ impl Client {
             .await
             .context(DeserializeBodySnafu)?;
 
-        // res.into_res()
-        Ok(res)
+        res.into_res()
     }
 
     async fn action_raw<'a, P, Q, const N: usize, F>(
@@ -218,7 +217,7 @@ impl Client {
 }
 
 #[derive(Debug)]
-pub struct BodyPathQuery<'a, B = (), P = Option<&'a str>, Q = &'a str, const N: usize = 0>
+pub(crate) struct BodyPathQuery<'a, B = (), P = Option<&'a str>, Q = &'a str, const N: usize = 0>
 where
     B: Serialize + fmt::Debug,
     P: IntoIterator<Item = &'a str>,
