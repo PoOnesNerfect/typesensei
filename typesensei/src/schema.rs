@@ -55,6 +55,7 @@ pub struct Field<'a> {
     pub facet: Option<bool>,
     pub index: Option<bool>,
     pub optional: Option<bool>,
+    pub drop: Option<bool>,
 }
 
 impl<'a> From<Field<'a>> for FieldOwned {
@@ -65,6 +66,7 @@ impl<'a> From<Field<'a>> for FieldOwned {
             facet,
             index,
             optional,
+            drop,
         } = f;
 
         Self {
@@ -73,7 +75,7 @@ impl<'a> From<Field<'a>> for FieldOwned {
             facet,
             index,
             optional,
-            drop: None,
+            drop,
         }
     }
 }
@@ -89,6 +91,16 @@ impl<'a> Field<'a> {
         self
     }
 
+    pub fn optional(mut self, optional: bool) -> Self {
+        self.optional.replace(optional);
+        self
+    }
+
+    pub fn drop(mut self, should_drop: bool) -> Self {
+        self.drop.replace(should_drop);
+        self
+    }
+
     pub fn to_owned(&self) -> FieldOwned {
         let Field {
             field_type,
@@ -96,6 +108,7 @@ impl<'a> Field<'a> {
             facet,
             index,
             optional,
+            drop,
         } = self;
 
         FieldOwned {
@@ -104,7 +117,7 @@ impl<'a> Field<'a> {
             facet: *facet,
             index: *index,
             optional: *optional,
-            drop: None,
+            drop: *drop,
         }
     }
 }
@@ -158,6 +171,7 @@ macro_rules! field_init_impl {
                             facet: None,
                             index: None,
                             optional: None,
+                            drop: None,
                         }
                     }
                 }

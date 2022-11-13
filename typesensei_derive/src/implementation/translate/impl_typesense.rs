@@ -181,7 +181,8 @@ fn impl_field(field: &Field, case: &RenameRule, tokens: &mut proc_macro2::TokenS
             field_type: < #ty >::field_type(),
             facet: #facet,
             index: #index,
-            optional: #optional
+            optional: #optional,
+            drop: None
         })
     });
 
