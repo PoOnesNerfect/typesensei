@@ -1,4 +1,4 @@
-use crate::{Client, Error, __priv::TypesenseReq};
+use crate::{Client, Error, __priv::TypesenseReq, schema::FieldOwned};
 use std::{fmt, iter::once, marker::PhantomData};
 use tracing::instrument;
 
@@ -32,6 +32,11 @@ impl<'a, T: TypesenseReq> Collection<'a, T> {
     #[instrument]
     pub async fn create(&self) -> Result<CollectionResponse, Error> {
         self.client.post((&T::schema(), once(PATH))).await
+    }
+
+    #[instrument]
+    pub async fn update(&self, fields: &Vec<FieldOwned>) -> Result<CollectionResponse, Error> {
+        self.client.patch((fields, self.path())).await
     }
 
     #[instrument]

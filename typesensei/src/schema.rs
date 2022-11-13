@@ -73,6 +73,7 @@ impl<'a> From<Field<'a>> for FieldOwned {
             facet,
             index,
             optional,
+            drop: None,
         }
     }
 }
@@ -103,6 +104,7 @@ impl<'a> Field<'a> {
             facet: *facet,
             index: *index,
             optional: *optional,
+            drop: None,
         }
     }
 }
@@ -116,6 +118,7 @@ pub struct FieldOwned {
     pub facet: Option<bool>,
     pub index: Option<bool>,
     pub optional: Option<bool>,
+    pub drop: Option<bool>,
 }
 
 macro_rules! field_init_impl {
@@ -171,6 +174,7 @@ macro_rules! field_init_impl {
                             facet: None,
                             index: None,
                             optional: None,
+                            drop: None,
                         }
                     }
                 }
