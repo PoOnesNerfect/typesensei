@@ -17,6 +17,12 @@ pub struct CollectionResponse {
 
 #[skip_serializing_none]
 #[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct CollectionUpdate {
+    pub fields: Vec<FieldOwned>,
+}
+
+#[skip_serializing_none]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ImportResponse {
     pub success: bool,
     pub error: Option<String>,
@@ -26,7 +32,7 @@ pub struct ImportResponse {
 #[skip_serializing_none]
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct MultiSearchResponse<T> {
-    pub results: Vec<SearchResponse<T>>
+    pub results: Vec<SearchResponse<T>>,
 }
 
 #[skip_serializing_none]

@@ -3,7 +3,7 @@ use serde::{Deserialize, Serialize};
 use std::{fmt, iter::once, marker::PhantomData};
 use tracing::instrument;
 
-use super::CollectionResponse;
+use super::{CollectionResponse, CollectionUpdate};
 
 const PATH: &'static str = "collections";
 
@@ -36,7 +36,7 @@ impl<'a, T: TypesenseReq> Collection<'a, T> {
     }
 
     #[instrument]
-    pub async fn update(&self, fields: Vec<FieldOwned>) -> Result<CollectionResponse, Error> {
+    pub async fn update(&self, fields: Vec<FieldOwned>) -> Result<CollectionUpdate, Error> {
         self.client
             .patch((CollectionUpdate { fields }, self.path()))
             .await
@@ -46,9 +46,4 @@ impl<'a, T: TypesenseReq> Collection<'a, T> {
     pub async fn delete(&self) -> Result<CollectionResponse, Error> {
         self.client.delete(self.path()).await
     }
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-struct CollectionUpdate {
-    fields: Vec<FieldOwned>,
 }
