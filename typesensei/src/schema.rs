@@ -54,6 +54,7 @@ pub struct Field<'a> {
     pub name: &'a str,
     pub facet: Option<bool>,
     pub index: Option<bool>,
+    pub sort: Option<bool>,
     pub optional: Option<bool>,
     pub drop: Option<bool>,
 }
@@ -65,6 +66,7 @@ impl<'a> From<Field<'a>> for FieldOwned {
             name,
             facet,
             index,
+            sort,
             optional,
             drop,
         } = f;
@@ -74,6 +76,7 @@ impl<'a> From<Field<'a>> for FieldOwned {
             name: name.to_owned(),
             facet,
             index,
+            sort,
             optional,
             drop,
         }
@@ -88,6 +91,11 @@ impl<'a> Field<'a> {
 
     pub fn index(mut self, index: bool) -> Self {
         self.index.replace(index);
+        self
+    }
+
+    pub fn sort(mut self, sort: bool) -> Self {
+        self.sort.replace(sort);
         self
     }
 
@@ -107,6 +115,7 @@ impl<'a> Field<'a> {
             name,
             facet,
             index,
+            sort,
             optional,
             drop,
         } = self;
@@ -116,6 +125,7 @@ impl<'a> Field<'a> {
             name: (*name).to_owned(),
             facet: *facet,
             index: *index,
+            sort: *sort,
             optional: *optional,
             drop: *drop,
         }
@@ -130,6 +140,7 @@ pub struct FieldOwned {
     pub name: String,
     pub facet: Option<bool>,
     pub index: Option<bool>,
+    pub sort: Option<bool>,
     pub optional: Option<bool>,
     pub drop: Option<bool>,
 }
@@ -170,6 +181,7 @@ macro_rules! field_init_impl {
                             name,
                             facet: None,
                             index: None,
+                            sort: None,
                             optional: None,
                             drop: None,
                         }
@@ -187,6 +199,7 @@ macro_rules! field_init_impl {
                             name,
                             facet: None,
                             index: None,
+                            sort: None,
                             optional: None,
                             drop: None,
                         }

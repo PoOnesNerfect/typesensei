@@ -90,6 +90,7 @@ fn impl_flatten_field(field: &Field, tokens: &mut proc_macro2::TokenStream) {
     let Field {
         ty,
         index,
+        sort,
         facet,
         rename,
         generic_type,
@@ -122,17 +123,24 @@ fn impl_flatten_field(field: &Field, tokens: &mut proc_macro2::TokenStream) {
                 }
             });
 
+            let set_sort = sort.as_ref().map(|i| {
+                quote! {
+                    field.sort = Some(#i);
+                }
+            });
+
             let set_rename = rename.as_ref().map(|r| {
                 quote! {
                     field.name = #r;
                 }
             });
 
-            if set_facet.is_some() || set_index.is_some() || set_rename.is_some() {
+            if set_facet.is_some() || set_index.is_some() || set_sort.is_some() || set_rename.is_some() {
                 braces.extend(quote! {
                     for field in &mut schema.fields {
                         #set_facet
                         #set_index
+                        #set_sort
                         #set_rename
                     }
                 });
@@ -154,6 +162,7 @@ fn impl_field(field: &Field, case: &RenameRule, tokens: &mut proc_macro2::TokenS
         field,
         ty,
         index,
+        sort,
         facet,
         is_option,
         default_sorting_field,
@@ -171,6 +180,7 @@ fn impl_field(field: &Field, case: &RenameRule, tokens: &mut proc_macro2::TokenS
 
     let facet = facet.map(|f| quote!(Some(#f))).unwrap_or(quote!(None));
     let index = index.map(|i| quote!(Some(#i))).unwrap_or(quote!(None));
+    let sort = sort.map(|i| quote!(Some(#i))).unwrap_or(quote!(None));
     let optional = (*is_option || should_be_optional)
         .then_some(quote!(Some(true)))
         .unwrap_or(quote!(None));
@@ -181,6 +191,7 @@ fn impl_field(field: &Field, case: &RenameRule, tokens: &mut proc_macro2::TokenS
             field_type: < #ty >::field_type(),
             facet: #facet,
             index: #index,
+            sort: #sort,
             optional: #optional,
             drop: None
         })

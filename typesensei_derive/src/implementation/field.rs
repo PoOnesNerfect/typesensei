@@ -20,6 +20,7 @@ pub struct Field {
 
     pub facet: Option<bool>,
     pub index: Option<bool>,
+    pub sort: Option<bool>,
     pub rename: Option<String>,
     #[darling(default)]
     pub default_sorting_field: bool,
