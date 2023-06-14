@@ -1,6 +1,6 @@
 use self::{
-    impl_from::ImplFrom, impl_model::ImplModel, impl_query::ImplQuery,
-    impl_typesense::ImplTypesense, struct_model::StructModel, struct_query::StructQuery,
+    impl_from::ImplFrom, impl_model::ImplModel, impl_typesense::ImplTypesense,
+    struct_model::StructModel,
 };
 use super::{case::RenameRule, struct_parser::StructParser, Field, TypesenseFields};
 use darling::ToTokens;
@@ -19,8 +19,8 @@ pub struct Implementation<'a> {
     struct_model: StructModel<'a>,
     impl_model: ImplModel<'a>,
     impl_from: ImplFrom<'a>,
-    struct_query: StructQuery<'a>,
-    impl_query: ImplQuery<'a>,
+    // struct_query: StructQuery<'a>,
+    // impl_query: ImplQuery<'a>,
 }
 
 impl<'a> ToTokens for Implementation<'a> {
@@ -30,8 +30,8 @@ impl<'a> ToTokens for Implementation<'a> {
             struct_model,
             impl_model,
             impl_from,
-            struct_query,
-            impl_query,
+            // struct_query,
+            // impl_query,
         } = self;
 
         impl_typesense.to_tokens(tokens);
@@ -126,32 +126,32 @@ impl Translator {
             fields: main_fields,
         };
 
-        let (query_impl_generics, query_type_generics, query_where_clause) =
-            query.generics.split_for_impl();
+        // let (query_impl_generics, query_type_generics, query_where_clause) =
+        //     query.generics.split_for_impl();
 
-        let struct_query = StructQuery {
-            ident: &query.ident,
-            impl_generics: &query_impl_generics,
-            where_clause: &query_where_clause,
-            fields: &query.fields,
-            id_type,
-        };
+        // let struct_query = StructQuery {
+        //     ident: &query.ident,
+        //     impl_generics: &query_impl_generics,
+        //     where_clause: &query_where_clause,
+        //     fields: &query.fields,
+        //     id_type,
+        // };
 
-        let impl_query = ImplQuery {
-            ident: &query.ident,
-            impl_generics: &query_impl_generics,
-            type_generics: &query_type_generics,
-            where_clause: &query_where_clause,
-            fields: &query.fields,
-        };
+        // let impl_query = ImplQuery {
+        //     ident: &query.ident,
+        //     impl_generics: &query_impl_generics,
+        //     type_generics: &query_type_generics,
+        //     where_clause: &query_where_clause,
+        //     fields: &query.fields,
+        // };
 
         let implementation = Implementation {
             impl_typesense,
             struct_model,
             impl_model,
             impl_from,
-            struct_query,
-            impl_query,
+            // struct_query,
+            // impl_query,
         };
 
         implementation.to_token_stream()

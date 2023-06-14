@@ -27,7 +27,7 @@ impl<'a> ToTokens for ImplTypesense<'a> {
             generics,
             id_type: _,
             model_associated_type,
-            query_associated_type,
+            query_associated_type: _,
             schema_name,
             enable_nested_fields,
             fields,
