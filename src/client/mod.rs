@@ -25,8 +25,8 @@ type QueryPair<Q, const N: usize> = [(&'static str, Q); N];
 #[derive(Debug, Clone)]
 pub struct Client {
     pub reqwest: Reqwest,
-    hostname: Arc<String>,
-    api_key: Arc<String>,
+    hostname: Arc<str>,
+    api_key: Arc<str>,
 }
 
 impl Client {
@@ -172,7 +172,7 @@ impl Client {
     {
         let res: TypesenseResult<R> = path_query_body
             .into()
-            .build(self.hostname.as_str(), |url| f(url))
+            .build(self.hostname.as_ref(), |url| f(url))
             .send()
             .await
             .context(ActionFailedSnafu)?
@@ -195,7 +195,7 @@ impl Client {
         Q: Serialize + fmt::Debug,
         F: FnOnce(&str) -> RequestBuilder,
     {
-        let hostname = self.hostname.as_str();
+        let hostname = self.hostname.as_ref();
         let path = path.into_iter();
 
         let mut url = String::with_capacity(hostname.len() + 1 + path.size_hint().0);

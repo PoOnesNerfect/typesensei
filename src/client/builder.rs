@@ -2,7 +2,7 @@ use super::{Client, NodeConfig, CONTENT_TYPE};
 use crate::{error::*, Error};
 use reqwest::header::{HeaderMap, HeaderValue};
 use snafu::{OptionExt, ResultExt};
-use std::{env, sync::Arc};
+use std::env;
 use tracing::instrument;
 
 pub const TYPESENSE_API_KEY_HEADER_NAME: &str = "X-TYPESENSE-API-KEY";
@@ -67,8 +67,8 @@ impl ClientBuilder {
 
         Ok(Client {
             reqwest,
-            api_key: Arc::new(api_key),
-            hostname: Arc::new(hostname),
+            api_key: api_key.into(),
+            hostname: hostname.into(),
         })
     }
 }
