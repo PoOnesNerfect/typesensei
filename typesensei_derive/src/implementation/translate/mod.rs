@@ -2,7 +2,9 @@ use self::{
     impl_from::ImplFrom, impl_model::ImplModel, impl_typesense::ImplTypesense,
     struct_model::StructModel,
 };
-use super::{case::RenameRule, struct_parser::StructParser, Field, TypesenseFields};
+use super::{
+    case::RenameRule, struct_parser::StructParser, Field, SymbolsToIndex, TypesenseFields,
+};
 use darling::ToTokens;
 use proc_macro2::TokenStream;
 use syn::{Generics, Ident, Path, Type};
@@ -59,6 +61,7 @@ pub struct Translator {
     pub schema_name: String,
     pub enable_nested_fields: bool,
     pub extra_fields: Option<TypesenseFields>,
+    pub symbols_to_index: Option<SymbolsToIndex>,
 }
 
 impl Translator {
@@ -76,6 +79,7 @@ impl Translator {
             schema_name,
             enable_nested_fields,
             extra_fields,
+            symbols_to_index,
         } = self;
 
         let impl_typesense = ImplTypesense {
@@ -89,6 +93,7 @@ impl Translator {
             enable_nested_fields: *enable_nested_fields,
             case,
             extra_fields: &extra_fields,
+            symbols_to_index: &symbols_to_index,
         };
 
         let (_, main_type_generics, _) = main_generics.split_for_impl();

@@ -9,6 +9,7 @@ pub struct CollectionSchema<'a> {
     pub fields: Vec<Field<'a>>,
     pub default_sorting_field: Option<&'a str>,
     pub enable_nested_fields: bool,
+    pub symbols_to_index: Option<Vec<String>>,
 }
 
 impl<'a> CollectionSchema<'a> {
@@ -18,6 +19,7 @@ impl<'a> CollectionSchema<'a> {
             fields: Vec::new(),
             default_sorting_field: None,
             enable_nested_fields: false,
+            symbols_to_index: None,
         }
     }
 
@@ -49,6 +51,19 @@ impl<'a> CollectionSchema<'a> {
 
     pub fn enable_nested_fields(mut self) -> Self {
         self.enable_nested_fields = true;
+        self
+    }
+
+    pub fn symbols_to_index<T: AsRef<str>>(
+        mut self,
+        symbols_to_index: impl IntoIterator<Item = T>,
+    ) -> Self {
+        self.symbols_to_index.replace(
+            symbols_to_index
+                .into_iter()
+                .map(|t| t.as_ref().to_owned())
+                .collect(),
+        );
         self
     }
 }

@@ -2,6 +2,7 @@ use crate::schema::OwnedField;
 use serde::{de::Visitor, Deserialize, Serialize};
 use serde_with::skip_serializing_none;
 
+pub mod alias;
 pub mod collection;
 pub mod documents;
 pub mod keys;

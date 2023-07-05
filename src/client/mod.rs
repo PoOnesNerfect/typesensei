@@ -1,13 +1,18 @@
 use crate::{
-    api::{collection::Collection, documents::Documents, keys::Keys, CollectionResponse},
-    error::*,
+    api::{
+        alias::{AliasListResponse, AliasRequest, AliasResponse},
+        collection::Collection,
+        documents::Documents,
+        keys::Keys,
+        CollectionResponse,
+    },
     Error,
     __priv::TypesenseReq,
 };
 use bytes::Bytes;
+use derivative::Derivative;
 use reqwest::{header::CONTENT_TYPE, Client as Reqwest, RequestBuilder};
 use serde::{de::DeserializeOwned, Deserialize, Serialize};
-use snafu::ResultExt;
 use std::{
     any::type_name,
     fmt::{self, Write},
@@ -22,10 +27,12 @@ pub use node_config::*;
 
 type QueryPair<Q, const N: usize> = [(&'static str, Q); N];
 
-#[derive(Debug, Clone)]
+#[derive(Clone, Derivative)]
+#[derivative(Debug)]
 pub struct Client {
     pub reqwest: Reqwest,
     hostname: Arc<str>,
+    #[derivative(Debug = "ignore")]
     api_key: Arc<str>,
 }
 
@@ -56,6 +63,26 @@ impl Client {
 
     pub async fn retrieve_collections(&self) -> Result<Vec<CollectionResponse>, Error> {
         self.get(once("collections")).await
+    }
+
+    pub async fn delete_collection(&self, collection: &str) -> Result<CollectionResponse, Error> {
+        self.delete(["collections", collection].into_iter()).await
+    }
+
+    pub async fn create_alias(
+        &self,
+        collection_name: &str,
+        alias: &str,
+    ) -> Result<AliasResponse, Error> {
+        let body = AliasRequest {
+            collection_name: collection_name.to_owned(),
+        };
+
+        self.put((body, ["aliases", alias])).await
+    }
+
+    pub async fn retrieve_aliases(&self) -> Result<AliasListResponse, Error> {
+        self.get(["aliases"]).await
     }
 
     pub fn collection<'a, T: TypesenseReq>(&'a self) -> Collection<'a, T> {
@@ -144,6 +171,21 @@ impl Client {
     }
 
     #[instrument]
+    pub(crate) async fn put<'a, B, P, Q, const N: usize, R>(
+        &self,
+        path_query_body: impl Into<BodyPathQuery<'a, B, P, Q, N>> + fmt::Debug,
+    ) -> Result<R, Error>
+    where
+        B: Serialize + fmt::Debug,
+        P: IntoIterator<Item = &'a str>,
+        Q: Serialize + fmt::Debug,
+        R: DeserializeOwned,
+    {
+        self.action(path_query_body, |url| self.reqwest.put(url))
+            .await
+    }
+
+    #[instrument]
     pub(crate) async fn delete<'a, P, B, Q, const N: usize, R>(
         &self,
         path_query_body: impl Into<BodyPathQuery<'a, B, P, Q, N>> + fmt::Debug,
@@ -172,13 +214,13 @@ impl Client {
     {
         let res: TypesenseResult<R> = path_query_body
             .into()
-            .build(self.hostname.as_ref(), |url| f(url))
+            .build(self.hostname.as_ref(), f)
             .send()
             .await
-            .context(ActionFailedSnafu)?
+            .map_err(Error::ActionFailed)?
             .json()
             .await
-            .context(DeserializeBodySnafu)?;
+            .map_err(Error::DeserializeBody)?;
 
         res.into_res()
     }
@@ -209,10 +251,10 @@ impl Client {
         req.query(query.as_ref())
             .send()
             .await
-            .context(ActionFailedSnafu)?
+            .map_err(Error::ActionFailed)?
             .text()
             .await
-            .context(DeserializeBodySnafu)
+            .map_err(Error::DeserializeBody)
     }
 }
 
@@ -325,13 +367,11 @@ struct TypesenseResult<T> {
 impl<T> TypesenseResult<T> {
     pub fn into_res(self) -> Result<T, Error> {
         if let Some(message) = self.message {
-            Err(Error::TypesenseError { message })
+            Err(Error::TypesenseError(message))
         } else if let Some(ret) = self.ret {
             Ok(ret)
         } else {
-            Err(Error::ParseFailed {
-                ret_type: type_name::<T>(),
-            })
+            Err(Error::ParseFailed(type_name::<T>()))
         }
     }
 }

@@ -1,7 +1,6 @@
 use super::{ImportResponse, MultiSearchResponse, SearchResponse};
-use crate::{error::*, Client, Error, MultiSearchQuery, SearchQuery, __priv::TypesenseReq};
+use crate::{Client, Error, MultiSearchQuery, SearchQuery, __priv::TypesenseReq};
 use bytes::{BufMut, BytesMut};
-use snafu::ResultExt;
 use std::{fmt, future::Future, io::Write, iter::once, marker::PhantomData};
 use tracing::instrument;
 
@@ -162,8 +161,9 @@ impl<'a, T: TypesenseReq> Documents<'a, T> {
         let mut writer = BytesMut::new().writer();
 
         for document in documents {
-            serde_json::to_writer(&mut writer, document).with_context(|_| DocumentToJsonSnafu {
+            serde_json::to_writer(&mut writer, document).map_err(|e| Error::DocumentToJson {
                 document: format!("{document:?}"),
+                source: e,
             })?;
             writer.write(&[b'\n']).expect("does not return Err ever");
         }
@@ -183,7 +183,12 @@ impl<'a, T: TypesenseReq> Documents<'a, T> {
         let mut res = Vec::with_capacity(documents.len());
 
         for line in body.lines() {
-            res.push(serde_json::from_str(&line).context(DeserializeTextSnafu { text: line })?);
+            res.push(
+                serde_json::from_str(&line).map_err(|e| Error::DeserializeText {
+                    text: line.to_owned(),
+                    source: e,
+                })?,
+            );
         }
 
         import_into_res(action, res)

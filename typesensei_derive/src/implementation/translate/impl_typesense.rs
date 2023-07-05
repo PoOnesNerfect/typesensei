@@ -1,9 +1,9 @@
 use super::{super::case::RenameRule, Field};
-use crate::implementation::{field_is_id, ts, TypesenseFields};
+use crate::implementation::{field_is_id, ts, SymbolsToIndex, TypesenseFields};
 use darling::ToTokens;
 use quote::quote;
 use syn::{
-    token::{Brace, Paren},
+    token::{Brace, Bracket, Paren},
     Generics, Ident, Type,
 };
 
@@ -18,6 +18,7 @@ pub struct ImplTypesense<'a> {
     pub fields: &'a Vec<Field>,
     pub case: &'a RenameRule,
     pub extra_fields: &'a Option<TypesenseFields>,
+    pub symbols_to_index: &'a Option<SymbolsToIndex>,
 }
 
 impl<'a> ToTokens for ImplTypesense<'a> {
@@ -33,6 +34,7 @@ impl<'a> ToTokens for ImplTypesense<'a> {
             fields,
             case,
             extra_fields,
+            symbols_to_index,
         } = self;
 
         let (impl_generics, type_generics, where_clause) = generics.split_for_impl();
@@ -41,6 +43,21 @@ impl<'a> ToTokens for ImplTypesense<'a> {
         let extra_fields_impl = ExtraFieldImpl::new(extra_fields);
 
         let enable_nested_fields = enable_nested_fields.then(|| quote!(.enable_nested_fields()));
+
+        let symbols_to_index_impl = symbols_to_index.as_ref().map(|t| {
+            let symbols = &t.0;
+            let mut tokens = quote!(.symbols_to_index);
+
+            Paren::default().surround(&mut tokens, |parens| {
+                Bracket::default().surround(parens, |brackets| {
+                    for symbol in symbols {
+                        brackets.extend(quote!(#symbol ,));
+                    }
+                });
+            });
+
+            tokens
+        });
 
         tokens.extend(quote! {
             impl #impl_generics ::typesensei::Typesense for #ident #type_generics
@@ -60,6 +77,7 @@ impl<'a> ToTokens for ImplTypesense<'a> {
                     #enable_nested_fields
                     #fields_impl
                     #extra_fields_impl
+                    #symbols_to_index_impl
                 }
             }
         });

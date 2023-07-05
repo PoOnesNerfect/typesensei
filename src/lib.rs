@@ -2,10 +2,10 @@ use api::ImportResponse;
 use reqwest::header::InvalidHeaderValue;
 use serde::{Deserialize, Serialize};
 use serde_with::skip_serializing_none;
-use snafu::Snafu;
 use std::{collections::HashMap, fmt};
 
 mod client;
+pub use api::keys::{generate_scoped_search_key, ApiKey};
 pub use client::*;
 pub use reqwest::{Client as Reqwest, ClientBuilder as ReqwestBuilder};
 
@@ -323,42 +323,40 @@ pub(crate) mod __priv {
     }
 }
 
-#[derive(Debug, Snafu)]
-#[snafu(visibility(pub(crate)))]
-#[snafu(module)]
+#[derive(Debug, thiserror::Error)]
 pub enum Error {
-    #[snafu(display("Request failed to Typesense"))]
-    ActionFailed { source: reqwest::Error },
-    #[snafu(display("Failed to deserialize response body as json"))]
-    DeserializeBody { source: reqwest::Error },
-    #[snafu(display("Failed to deserialize text {text} as json"))]
+    #[error("Request failed to Typesense")]
+    ActionFailed(#[source] reqwest::Error),
+    #[error("Failed to deserialize response body as json")]
+    DeserializeBody(#[source] reqwest::Error),
+    #[error("Failed to deserialize text {text} as json")]
     DeserializeText {
         text: String,
         source: serde_json::Error,
     },
-    #[snafu(display("Failed to parse response as either `message` or `{ret_type}`"))]
-    ParseFailed { ret_type: &'static str },
-    #[snafu(display("Failed to serialize document {document:?} to json"))]
+    #[error("Failed to parse response as either `message` or `{0}`")]
+    ParseFailed(&'static str),
+    #[error("Failed to serialize document {document:?} to json")]
     DocumentToJson {
         document: String,
         source: serde_json::Error,
     },
-    #[snafu(display("Failed to {action} multiple documents: {errors:#?}",))]
+    #[error("Failed to {action} multiple documents: {errors:#?}")]
     BatchActionFailed {
         action: String,
         errors: Vec<(usize, ImportResponse)>,
     },
-    #[snafu(display("{message}"))]
-    TypesenseError { message: String },
-    #[snafu(display("API Key not found"))]
+    #[error("{0}")]
+    TypesenseError(String),
+    #[error("API Key not found")]
     ApiKeyNotFound,
-    #[snafu(display("Hostname not found"))]
+    #[error("Hostname not found")]
     HostnameNotFound,
-    #[snafu(display("API Key ({api_key}) is invalid"))]
+    #[error("API Key ({api_key}) is invalid")]
     InvalidApiKey {
         api_key: String,
         source: InvalidHeaderValue,
     },
-    #[snafu(display("ReqwestBuilder failed to build"))]
-    ReqwestBuilderFailed { source: reqwest::Error },
+    #[error("ReqwestBuilder failed to build")]
+    ReqwestBuilderFailed(#[source] reqwest::Error),
 }

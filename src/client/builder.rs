@@ -1,7 +1,6 @@
 use super::{Client, NodeConfig, CONTENT_TYPE};
-use crate::{error::*, Error};
+use crate::Error;
 use reqwest::header::{HeaderMap, HeaderValue};
-use snafu::{OptionExt, ResultExt};
 use std::env;
 use tracing::instrument;
 
@@ -48,22 +47,23 @@ impl ClientBuilder {
 
     #[instrument]
     pub fn build(self) -> Result<Client, Error> {
-        let api_key = self.api_key.context(ApiKeyNotFoundSnafu)?;
-        let hostname = self.hostname.context(HostnameNotFoundSnafu)?;
+        let api_key = self.api_key.ok_or(Error::ApiKeyNotFound)?;
+        let hostname = self.hostname.ok_or(Error::HostnameNotFound)?;
 
         let mut builder = self.reqwest_builder.unwrap_or_default();
 
         let mut header_map = HeaderMap::new();
         header_map.insert(
             TYPESENSE_API_KEY_HEADER_NAME,
-            HeaderValue::from_str(&api_key).with_context(|_| InvalidApiKeySnafu {
+            HeaderValue::from_str(&api_key).map_err(|e| Error::InvalidApiKey {
                 api_key: api_key.to_owned(),
+                source: e,
             })?,
         );
         header_map.insert(CONTENT_TYPE, JSON_CONTENT_TYPE);
         builder = builder.default_headers(header_map);
 
-        let reqwest = builder.build().context(ReqwestBuilderFailedSnafu)?;
+        let reqwest = builder.build().map_err(Error::ReqwestBuilderFailed)?;
 
         Ok(Client {
             reqwest,

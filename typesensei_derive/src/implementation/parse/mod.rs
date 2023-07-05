@@ -24,9 +24,38 @@ pub struct Derived {
     query: Option<String>,
     rename: Option<String>,
     rename_all: Option<String>,
+    symbols_to_index: Option<SymbolsToIndex>,
     #[darling(default)]
     enable_nested_fields: bool,
     extra_fields: Option<TypesenseFields>,
+}
+
+#[derive(Debug, Clone)]
+pub struct SymbolsToIndex(pub Vec<String>);
+
+impl FromMeta for SymbolsToIndex {
+    fn from_meta(item: &syn::Meta) -> Result<Self> {
+        (match *item {
+            Meta::Path(_) => Self::from_word(),
+            Meta::List(ref value) => Self::from_list(
+                &value
+                    .nested
+                    .iter()
+                    .cloned()
+                    .collect::<Vec<syn::NestedMeta>>()[..],
+            ),
+            Meta::NameValue(ref value) => String::from_value(&value.lit).map(|t| Self(vec![t])),
+        })
+        .map_err(|e| e.with_span(item))
+    }
+
+    fn from_list(items: &[syn::NestedMeta]) -> Result<Self> {
+        items
+            .iter()
+            .map(|i| String::from_nested_meta(i))
+            .collect::<Result<Vec<_>>>()
+            .map(|t| Self(t))
+    }
 }
 
 #[derive(Debug, Clone)]
@@ -88,6 +117,7 @@ impl Translator {
             query,
             rename,
             rename_all,
+            symbols_to_index,
             mut enable_nested_fields,
             extra_fields,
         } = Derived::from_derive_input(&input)?;
@@ -159,6 +189,7 @@ impl Translator {
             schema_name,
             enable_nested_fields,
             extra_fields,
+            symbols_to_index,
         })
     }
 }
