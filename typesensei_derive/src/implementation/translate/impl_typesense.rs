@@ -13,7 +13,7 @@ pub struct ImplTypesense<'a> {
     pub id_type: &'a Type,
     pub model_associated_type: &'a Type,
     pub query_associated_type: &'a Type,
-    pub schema_name: &'a String,
+    pub schema_name: &'a SchemaName,
     pub enable_nested_fields: bool,
     pub fields: &'a Vec<Field>,
     pub case: &'a RenameRule,
@@ -67,7 +67,7 @@ impl<'a> ToTokens for ImplTypesense<'a> {
                 // type Query = #query_associated_type;
 
                 #[inline(always)]
-                fn schema_name() -> &'static str {
+                fn schema_name() -> String {
                     #schema_name
                 }
 
@@ -81,6 +81,20 @@ impl<'a> ToTokens for ImplTypesense<'a> {
                 }
             }
         });
+    }
+}
+
+pub enum SchemaName {
+    Static(String),
+    Fn(syn::Path),
+}
+
+impl ToTokens for SchemaName {
+    fn to_tokens(&self, tokens: &mut proc_macro2::TokenStream) {
+        match self {
+            SchemaName::Static(name) => tokens.extend(quote!(#name .to_owned())),
+            SchemaName::Fn(fn_name) => tokens.extend(quote!({#fn_name ()})),
+        }
     }
 }
 

@@ -5,7 +5,7 @@ use serde_with::skip_serializing_none;
 #[skip_serializing_none]
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct CollectionSchema<'a> {
-    pub name: &'a str,
+    pub name: String,
     pub fields: Vec<Field<'a>>,
     pub default_sorting_field: Option<&'a str>,
     pub enable_nested_fields: bool,
@@ -13,7 +13,7 @@ pub struct CollectionSchema<'a> {
 }
 
 impl<'a> CollectionSchema<'a> {
-    pub fn new(name: &'a str) -> Self {
+    pub fn new(name: String) -> Self {
         Self {
             name,
             fields: Vec::new(),

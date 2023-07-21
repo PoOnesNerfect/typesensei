@@ -1,5 +1,5 @@
 use crate::{Client, Error, __priv::TypesenseReq, schema::OwnedField};
-use std::{fmt, iter::once, marker::PhantomData};
+use std::{iter::once, marker::PhantomData};
 use tracing::instrument;
 
 use super::{CollectionResponse, CollectionUpdate};
@@ -20,13 +20,9 @@ impl<'a, T: TypesenseReq> Collection<'a, T> {
         }
     }
 
-    fn path(&self) -> impl Iterator<Item = &'a str> + fmt::Debug {
-        [PATH, T::schema_name()].into_iter()
-    }
-
     #[instrument]
     pub async fn retreive(&self) -> Result<CollectionResponse, Error> {
-        self.client.get(self.path()).await
+        self.client.get([PATH, T::schema_name().as_str()]).await
     }
 
     #[instrument]
@@ -37,12 +33,15 @@ impl<'a, T: TypesenseReq> Collection<'a, T> {
     #[instrument]
     pub async fn update(&self, fields: Vec<OwnedField>) -> Result<CollectionUpdate, Error> {
         self.client
-            .patch((CollectionUpdate { fields }, self.path()))
+            .patch((
+                CollectionUpdate { fields },
+                [PATH, T::schema_name().as_str()],
+            ))
             .await
     }
 
     #[instrument]
     pub async fn delete(&self) -> Result<CollectionResponse, Error> {
-        self.client.delete(self.path()).await
+        self.client.delete([PATH, T::schema_name().as_str()]).await
     }
 }

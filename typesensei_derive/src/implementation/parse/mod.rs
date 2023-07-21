@@ -1,5 +1,8 @@
 use self::struct_parser::StructParser;
-use super::{case, case::RenameRule, is_object, is_object_array, Field, Translator};
+use super::{
+    case, case::RenameRule, is_object, is_object_array, translate::impl_typesense::SchemaName,
+    Field, Translator,
+};
 use darling::{Error, FromDeriveInput, FromMeta, Result};
 use proc_macro2::TokenStream;
 use proc_macro_error::abort;
@@ -23,6 +26,7 @@ pub struct Derived {
     model: Option<String>,
     query: Option<String>,
     rename: Option<String>,
+    rename_with: Option<syn::Path>,
     rename_all: Option<String>,
     symbols_to_index: Option<SymbolsToIndex>,
     #[darling(default)]
@@ -116,6 +120,7 @@ impl Translator {
             model,
             query,
             rename,
+            rename_with,
             rename_all,
             symbols_to_index,
             mut enable_nested_fields,
@@ -170,9 +175,13 @@ impl Translator {
             &fields,
         );
 
-        let schema_name = rename
-            .to_owned()
-            .unwrap_or_else(|| case::RenameRule::SnakeCase.apply_to_variant(&ident.to_string()));
+        let schema_name = if let Some(fn_name) = rename_with {
+            SchemaName::Fn(fn_name)
+        } else if let Some(name) = rename {
+            SchemaName::Static(name)
+        } else {
+            SchemaName::Static(case::RenameRule::SnakeCase.apply_to_variant(&ident.to_string()))
+        };
 
         Ok(Self {
             serde,

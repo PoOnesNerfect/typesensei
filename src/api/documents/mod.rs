@@ -1,7 +1,7 @@
 use super::{ImportResponse, MultiSearchResponse, SearchResponse};
 use crate::{Client, Error, MultiSearchQuery, SearchQuery, __priv::TypesenseReq};
 use bytes::{BufMut, BytesMut};
-use std::{fmt, future::Future, io::Write, iter::once, marker::PhantomData};
+use std::{future::Future, io::Write, marker::PhantomData};
 use tracing::instrument;
 
 type BatchResult = Result<(), Error>;
@@ -28,18 +28,20 @@ impl<'a, T: TypesenseReq> Documents<'a, T> {
         &self.client
     }
 
-    fn path(&self) -> impl Iterator<Item = &'a str> + fmt::Debug {
-        ["collections", T::schema_name(), "documents"].into_iter()
-    }
-
     #[instrument]
     pub async fn create(&self, document: &T) -> Result<T::Model, Error> {
-        self.client().post((document, self.path())).await
+        self.client()
+            .post((
+                document,
+                ["collections", T::schema_name().as_str(), "documents"],
+            ))
+            .await
     }
 
     #[instrument]
     pub async fn retrieve(&self, id: &str) -> Result<T, Error> {
-        let path = self.path().chain(once(id));
+        let schema_name = T::schema_name();
+        let path = ["collections", schema_name.as_str(), "documents", id];
 
         let ret = self.client().get(path).await?;
 
@@ -48,7 +50,8 @@ impl<'a, T: TypesenseReq> Documents<'a, T> {
 
     #[instrument]
     pub async fn search(&self, query: &SearchQuery) -> Result<SearchResponse<T>, Error> {
-        let path = self.path().chain(once("search"));
+        let schema_name = T::schema_name();
+        let path = ["collections", schema_name.as_str(), "documents", "search"];
 
         let ret = self.client().get((path, query.query_pairs())).await?;
 
@@ -61,7 +64,9 @@ impl<'a, T: TypesenseReq> Documents<'a, T> {
         common: &Option<SearchQuery>,
         multi_query: &Option<MultiSearchQuery>,
     ) -> Result<MultiSearchResponse<T>, Error> {
-        let path = self.path().chain(once("search"));
+        let schema_name = T::schema_name();
+        let path = ["collections", schema_name.as_str(), "documents", "search"];
+
         let empty = SearchQuery::empty_query_pairs();
 
         let ret = self
@@ -78,21 +83,26 @@ impl<'a, T: TypesenseReq> Documents<'a, T> {
 
     #[instrument]
     pub async fn upsert(&self, document: &T::Model) -> Result<T::Model, Error> {
+        let schema_name = T::schema_name();
+        let path = ["collections", schema_name.as_str(), "documents"];
+
         self.client()
-            .post((document, self.path(), [("action", Some("upsert"))]))
+            .post((document, path, [("action", Some("upsert"))]))
             .await
     }
 
     #[instrument]
     pub async fn update(&self, id: &str, document: &T::Model) -> Result<T::Model, Error> {
-        let path = self.path().chain(once(id));
+        let schema_name = T::schema_name();
+        let path = ["collections", schema_name.as_str(), "documents", id];
 
         self.client().patch((document, path)).await
     }
 
     #[instrument]
     pub async fn delete(&self, id: &str) -> Result<T, Error> {
-        let path = self.path().chain(once(id));
+        let schema_name = T::schema_name();
+        let path = ["collections", schema_name.as_str(), "documents", id];
 
         self.client().delete(path).await
     }
@@ -156,7 +166,8 @@ impl<'a, T: TypesenseReq> Documents<'a, T> {
         query: QueryPair<'a, N>,
         documents: &'a [T::Model],
     ) -> BatchResult {
-        let path = self.path().into_iter().chain(once("import"));
+        let schema_name = T::schema_name();
+        let path = ["collections", schema_name.as_str(), "documents", "import"];
 
         let mut writer = BytesMut::new().writer();
 

@@ -25,7 +25,7 @@ pub trait Typesense: Sized {
     type Model: traits::TypesenseModel + From<Self>;
     // type Query: traits::TypesenseQuery;
 
-    fn schema_name() -> &'static str;
+    fn schema_name() -> String;
 
     fn schema() -> schema::CollectionSchema<'static>;
 
@@ -42,8 +42,8 @@ impl Typesense for serde_json::Value {
     type Model = Self;
     // type Query = state::QueryBuilder;
 
-    fn schema_name() -> &'static str {
-        "json"
+    fn schema_name() -> String {
+        "json".to_owned()
     }
 
     fn schema() -> schema::CollectionSchema<'static> {
@@ -60,8 +60,8 @@ where
     type Model = Self;
     // type Query = state::QueryBuilder;
 
-    fn schema_name() -> &'static str {
-        "map"
+    fn schema_name() -> String {
+        "map".to_owned()
     }
 
     fn schema() -> schema::CollectionSchema<'static> {

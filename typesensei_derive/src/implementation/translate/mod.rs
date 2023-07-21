@@ -1,5 +1,7 @@
 use self::{
-    impl_from::ImplFrom, impl_model::ImplModel, impl_typesense::ImplTypesense,
+    impl_from::ImplFrom,
+    impl_model::ImplModel,
+    impl_typesense::{ImplTypesense, SchemaName},
     struct_model::StructModel,
 };
 use super::{
@@ -58,7 +60,7 @@ pub struct Translator {
     pub model: StructParser,
     pub query: StructParser,
 
-    pub schema_name: String,
+    pub schema_name: SchemaName,
     pub enable_nested_fields: bool,
     pub extra_fields: Option<TypesenseFields>,
     pub symbols_to_index: Option<SymbolsToIndex>,
