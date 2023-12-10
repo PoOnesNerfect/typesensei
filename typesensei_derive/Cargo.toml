@@ -1,0 +1,26 @@
+[package]
+name = "typesensei_derive"
+version = "0.1.15"
+edition = "2021"
+authors = ["PoOnesNerfect <jack.y.l.dev@gmail.com>"]
+description = "Derive proc macro for typesensei"
+documentation = "https://docs.rs/typesensei_derive"
+repository = "https://github.com/PoOnesNerfect/typesensei"
+homepage = "https://github.com/PoOnesNerfect/typesensei"
+license = "MIT"
+readme = "../README.md"
+categories = ["web-programming", "api-bindings"]
+keywords = ["typesense"]
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[lib]
+proc-macro = true
+
+[dependencies]
+darling = { version = "0.20" }
+syn = { version = "^2.0", features = ["full"] }
+quote = "^1.0"
+proc-macro-error = "^1.0"
+proc-macro2 = { version = "^1.0" }
+paste = { version = "^1.0" }
