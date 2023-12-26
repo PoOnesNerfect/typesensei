@@ -158,9 +158,9 @@ macro_rules! field_init_impl {
         impl<'a> Field<'a> {
             $(
                 paste::paste! {
-                    pub const [< $t:upper >] : &str = field_init_impl!(@display $t $(=> $n)?);
+                    pub const [< $t:upper >] : &'static str = field_init_impl!(@display $t $(=> $n)?);
                     $(
-                        pub const [< $t:upper _ARRAY>] : &str = field_init_impl!(@display $t ($array));
+                        pub const [< $t:upper _ARRAY>] : &'static str = field_init_impl!(@display $t ($array));
                     )?
                 }
             )*

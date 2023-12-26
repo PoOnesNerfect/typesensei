@@ -39,7 +39,7 @@ impl<'a, T: TypesenseReq> Documents<'a, T> {
     }
 
     #[instrument]
-    pub async fn create(&self, document: &T) -> Result<T::Model, Error> {
+    pub async fn create(&self, document: &T::Model) -> Result<T::Model, Error> {
         self.client()
             .post((
                 document,
