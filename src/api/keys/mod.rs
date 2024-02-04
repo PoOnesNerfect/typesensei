@@ -1,7 +1,6 @@
 use crate::{Client, Error};
 use base64::Engine;
 use hmac::{Hmac, Mac};
-use itertools::Itertools;
 use serde::{Deserialize, Serialize};
 use serde_with::skip_serializing_none;
 use sha2::Sha256;
@@ -93,18 +92,14 @@ impl GenerateScopedSearchKeyBuilder {
         self
     }
 
-    pub fn query_by<'a>(mut self, query_by: impl IntoIterator<Item = &'a str>) -> Self {
-        self.filters
-            .query_by
-            .replace(query_by.into_iter().join(","));
+    pub fn query_by(mut self, query_by: String) -> Self {
+        self.filters.query_by.replace(query_by);
 
         self
     }
 
-    pub fn filter_by(mut self, filter_by: impl AsRef<str>) -> Self {
-        self.filters
-            .filter_by
-            .replace(filter_by.as_ref().to_owned());
+    pub fn filter_by(mut self, filter_by: String) -> Self {
+        self.filters.filter_by.replace(filter_by);
 
         self
     }
@@ -115,23 +110,21 @@ impl GenerateScopedSearchKeyBuilder {
         self
     }
 
-    pub fn include_fields<'a>(mut self, fields: impl IntoIterator<Item = &'a str>) -> Self {
-        self.filters
-            .include_fields
-            .replace(fields.into_iter().join(","));
+    pub fn include_fields(mut self, fields: String) -> Self {
+        self.filters.include_fields.replace(fields);
 
         self
     }
 
-    pub fn exclude_fields<'a>(mut self, fields: impl IntoIterator<Item = &'a str>) -> Self {
-        self.filters
-            .exclude_fields
-            .replace(fields.into_iter().join(","));
+    pub fn exclude_fields(mut self, fields: String) -> Self {
+        self.filters.exclude_fields.replace(fields);
 
         self
     }
 
-    pub fn build(self) -> Result<String, Error> {
+    /// Returns generated scoped search key and its expiration time in seconds
+    pub fn build(self) -> Result<(String, u64), Error> {
+        let expires_at = self.filters.expires_at;
         let params = serde_json::to_string(&self.filters).unwrap();
 
         let mut mac = Hmac::<Sha256>::new_from_slice(self.key.as_bytes()).unwrap();
@@ -144,7 +137,7 @@ impl GenerateScopedSearchKeyBuilder {
         let key_prefix = &self.key.as_str()[0..4];
         let raw_scoped_key = format!("{}{}{}", digest, key_prefix, params);
 
-        Ok(standard.encode(raw_scoped_key.as_bytes()))
+        Ok((standard.encode(raw_scoped_key.as_bytes()), expires_at))
     }
 }
 

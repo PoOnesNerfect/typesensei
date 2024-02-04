@@ -98,12 +98,17 @@ fn impl_field(field: &Field, tokens: &mut proc_macro2::TokenStream) {
     let fn_name = format_ident!("set_{raw_ident}");
     if is_object(field) {
         let ty = quote! (<#ty as ::typesensei::Typesense>::Model);
-        tokens.extend(quote! { pub fn #fn_name <F: FnOnce(#ty) -> #ty> (mut self, f: F) -> Self });
+        // tokens.extend(quote! { pub fn #fn_name <F: FnOnce(#ty) -> #ty> (mut self, f: F) -> Self });
+        tokens.extend(quote! { pub fn #fn_name (mut self, #raw_ident: #ty) -> Self });
         Brace::default().surround(tokens, |braces| {
             braces.extend(quote! {
-                self. #raw_ident = f(self. #raw_ident);
+                self. #raw_ident = ::typesensei::field::set(#raw_ident);
                 self
             });
+            // braces.extend(quote! {
+            //     self. #raw_ident = f(self. #raw_ident);
+            //     self
+            // });
         });
     } else if is_object_array(field) {
         if let Some(inner_type) = is_vec.as_ref() {

@@ -113,9 +113,12 @@ fn impl_field(field: &Field, hash: &Token![#], tokens: &mut proc_macro2::TokenSt
     if is_object(field) {
         let rename = rename.as_ref().map(|r| quote!(#hash [serde(rename = #r)]));
 
+        tokens.extend(
+            quote!(#hash [serde(skip_serializing_if = "::typesensei::field::FieldState::is_unset")]),
+        );
         tokens.extend(quote! {
             #rename
-            pub #raw_ident : <#ty as ::typesensei::Typesense>::Model,
+            pub #raw_ident : ::typesensei::field::FieldState<<#ty as ::typesensei::Typesense>::Model>,
         });
     } else if is_object_array(field) {
         if let Some(inner_type) = is_vec.as_ref() {
