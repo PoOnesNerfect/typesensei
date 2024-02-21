@@ -10,8 +10,19 @@ mod implementation;
 pub fn typesense(input: TokenStream) -> TokenStream {
     let input = parse_macro_input!(input as DeriveInput);
 
-    match implementation::implement(input) {
+    match implementation::impl_typesense(input) {
         Ok(typesense) => typesense.to_token_stream().into(),
+        Err(e) => e.write_errors().into(),
+    }
+}
+
+#[proc_macro_derive(Partial, attributes(typesensei))]
+#[proc_macro_error]
+pub fn partial(input: TokenStream) -> TokenStream {
+    let input = parse_macro_input!(input as DeriveInput);
+
+    match implementation::impl_partial(input) {
+        Ok(partial) => partial.to_token_stream().into(),
         Err(e) => e.write_errors().into(),
     }
 }

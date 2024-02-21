@@ -1,3 +1,5 @@
+use std::borrow::Cow;
+
 use borrowme::borrowme;
 use serde::{Deserialize, Serialize};
 use serde_with::skip_serializing_none;
@@ -5,7 +7,7 @@ use serde_with::skip_serializing_none;
 #[skip_serializing_none]
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct CollectionSchema<'a> {
-    pub name: String,
+    pub name: &'a str,
     pub fields: Vec<Field<'a>>,
     pub default_sorting_field: Option<&'a str>,
     pub enable_nested_fields: bool,
@@ -13,7 +15,7 @@ pub struct CollectionSchema<'a> {
 }
 
 impl<'a> CollectionSchema<'a> {
-    pub fn new(name: String) -> Self {
+    pub fn new(name: &'a str) -> Self {
         Self {
             name,
             fields: Vec::new(),
@@ -23,13 +25,17 @@ impl<'a> CollectionSchema<'a> {
         }
     }
 
-    pub fn with_name(mut self, name: String) -> Self {
-        self.name = name;
+    pub fn field(mut self, field: Field<'a>) -> Self {
+        self.fields.push(field);
         self
     }
 
-    pub fn field(mut self, field: Field<'a>) -> Self {
-        self.fields.push(field);
+    pub fn schema_field(mut self, field: &'a str, schema: Self) -> Self {
+        let fields = schema.fields.into_iter().map(|mut f| {
+            f.name = Cow::Owned(format!("{}.{}", field, f.name));
+            f
+        });
+        self.fields.extend(fields);
         self
     }
 
@@ -79,7 +85,7 @@ impl<'a> CollectionSchema<'a> {
 pub struct Field<'a> {
     #[serde(rename = "type")]
     pub field_type: &'a str,
-    pub name: &'a str,
+    pub name: Cow<'a, str>,
     pub facet: Option<bool>,
     pub index: Option<bool>,
     pub sort: Option<bool>,
@@ -170,7 +176,7 @@ macro_rules! field_init_impl {
                     pub fn [<$t:snake:lower>](name: &'a str) -> Self {
                         Self {
                             field_type: Field:: [< $t:upper >],
-                            name,
+                            name: Cow::Borrowed(name),
                             facet: None,
                             index: None,
                             sort: None,
@@ -183,7 +189,7 @@ macro_rules! field_init_impl {
                         pub fn [< $t:lower _ $array >] (name: &'a str) -> Self {
                             Self {
                                 field_type: Field:: [< $t:upper _ARRAY >],
-                                name,
+                                name: Cow::Borrowed(name),
                                 facet: None,
                                 index: None,
                                 sort: None,
@@ -202,7 +208,7 @@ macro_rules! field_init_impl {
                     pub fn [<$t:snake:lower>](name: String) -> Self {
                         Self {
                             field_type: Field:: [< $t:upper >] .to_owned(),
-                            name,
+                            name: Cow::Owned(name),
                             facet: None,
                             index: None,
                             sort: None,
@@ -215,7 +221,7 @@ macro_rules! field_init_impl {
                         pub fn [< $t:lower _ $array >] (name: String) -> Self {
                             Self {
                                 field_type: Field:: [< $t:upper _ARRAY >] .to_owned(),
-                                name,
+                                name: Cow::Owned(name),
                                 facet: None,
                                 index: None,
                                 sort: None,

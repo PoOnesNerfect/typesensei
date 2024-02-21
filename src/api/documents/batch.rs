@@ -1,14 +1,15 @@
+use crate::Typesense;
+
 use super::{BatchResult, Documents};
-use crate::__priv::TypesenseReq;
 use std::{
     future::{Future, IntoFuture},
     marker::PhantomData,
 };
 
 #[derive(Debug)]
-pub struct DocumentBatchAction<'a, T: TypesenseReq, Fut: 'a> {
+pub struct DocumentBatchAction<'a, T: Typesense, Fut: 'a> {
     api: &'a Documents<'a, T>,
-    documents: &'a [T::Model],
+    documents: &'a [T::Partial],
     action: Option<&'a str>,
     dirty_values: Option<&'a str>,
     batch_size: Option<&'a str>,
@@ -16,11 +17,11 @@ pub struct DocumentBatchAction<'a, T: TypesenseReq, Fut: 'a> {
     _phantom: PhantomData<Fut>,
 }
 
-impl<'a, T: TypesenseReq, Fut: 'a> DocumentBatchAction<'a, T, Fut> {
+impl<'a, T: Typesense, Fut: 'a> DocumentBatchAction<'a, T, Fut> {
     pub(crate) fn new(
         api: &'a Documents<'a, T>,
         action: Option<&'a str>,
-        documents: &'a [T::Model],
+        documents: &'a [T::Partial],
         fut: Fut,
     ) -> DocumentBatchAction<'a, T, Fut> {
         DocumentBatchAction {
@@ -70,7 +71,7 @@ impl<'a, T: TypesenseReq, Fut: 'a> DocumentBatchAction<'a, T, Fut> {
     }
 }
 
-impl<'a, T: TypesenseReq, Fut: 'a + Future<Output = BatchResult>> IntoFuture
+impl<'a, T: Typesense, Fut: 'a + Future<Output = BatchResult>> IntoFuture
     for DocumentBatchAction<'a, T, Fut>
 {
     type Output = Fut::Output;

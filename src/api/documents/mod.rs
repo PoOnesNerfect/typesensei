@@ -1,7 +1,7 @@
-use super::{ImportResponse, MultiSearchResponse, SearchResponse};
-use crate::{Client, Error, MultiSearchQuery, SearchQuery, __priv::TypesenseReq, error::*};
+use super::ImportResponse;
+use crate::{error::*, Client, Error, Typesense};
 use bytes::{BufMut, BytesMut};
-use std::{borrow::Cow, future::Future, io::Write, marker::PhantomData};
+use std::{future::Future, io::Write, marker::PhantomData};
 use tracing::instrument;
 
 type BatchResult = Result<(), Error>;
@@ -11,25 +11,17 @@ mod batch;
 pub use batch::*;
 
 #[derive(Debug, Clone)]
-pub struct Documents<'a, T: TypesenseReq> {
+pub struct Documents<'a, T: Typesense> {
     client: &'a Client,
-    collection_name: Cow<'a, str>,
+    collection_name: &'a str,
     _phantom: PhantomData<T>,
 }
 
-impl<'a, T: TypesenseReq> Documents<'a, T> {
-    pub(crate) fn new(client: &'a Client) -> Documents<'a, T> {
+impl<'a, T: Typesense> Documents<'a, T> {
+    pub(crate) fn new(client: &'a Client, collection_name: &'a str) -> Documents<'a, T> {
         Self {
             client,
-            collection_name: Cow::Owned(T::schema_name()),
-            _phantom: PhantomData,
-        }
-    }
-
-    pub(crate) fn new_with_name(client: &'a Client, collection_name: &'a str) -> Documents<'a, T> {
-        Self {
-            client,
-            collection_name: Cow::Borrowed(collection_name),
+            collection_name,
             _phantom: PhantomData,
         }
     }
@@ -38,8 +30,8 @@ impl<'a, T: TypesenseReq> Documents<'a, T> {
         &self.client
     }
 
-    #[instrument]
-    pub async fn create(&self, document: &T::Model) -> Result<T::Model, Error> {
+    #[instrument(skip(self))]
+    pub async fn create(&self, document: &T) -> Result<T::Partial, Error> {
         self.client()
             .post((
                 document,
@@ -48,7 +40,7 @@ impl<'a, T: TypesenseReq> Documents<'a, T> {
             .await
     }
 
-    #[instrument]
+    #[instrument(skip(self))]
     pub async fn retrieve(&self, id: &str) -> Result<T, Error> {
         let path = [
             "collections",
@@ -62,49 +54,8 @@ impl<'a, T: TypesenseReq> Documents<'a, T> {
         Ok(ret)
     }
 
-    #[instrument]
-    pub async fn search(&self, query: &SearchQuery) -> Result<SearchResponse<T>, Error> {
-        let path = [
-            "collections",
-            self.collection_name.as_ref(),
-            "documents",
-            "search",
-        ];
-
-        let ret = self.client().get((path, query.query_pairs())).await?;
-
-        Ok(ret)
-    }
-
-    #[instrument]
-    pub async fn multi_search(
-        &self,
-        common: &Option<SearchQuery>,
-        multi_query: &Option<MultiSearchQuery>,
-    ) -> Result<MultiSearchResponse<T>, Error> {
-        let path = [
-            "collections",
-            self.collection_name.as_ref(),
-            "documents",
-            "search",
-        ];
-
-        let empty = SearchQuery::empty_query_pairs();
-
-        let ret = self
-            .client()
-            .post((
-                multi_query,
-                path,
-                common.as_ref().map(|c| c.query_pairs()).unwrap_or(empty),
-            ))
-            .await?;
-
-        Ok(ret)
-    }
-
-    #[instrument]
-    pub async fn upsert(&self, document: &T::Model) -> Result<T::Model, Error> {
+    #[instrument(skip(self))]
+    pub async fn upsert(&self, document: &T) -> Result<T::Partial, Error> {
         let path = ["collections", self.collection_name.as_ref(), "documents"];
 
         self.client()
@@ -112,8 +63,8 @@ impl<'a, T: TypesenseReq> Documents<'a, T> {
             .await
     }
 
-    #[instrument]
-    pub async fn update(&self, id: &str, document: &T::Model) -> Result<T::Model, Error> {
+    #[instrument(skip(self))]
+    pub async fn update(&self, id: &str, document: &T::Partial) -> Result<T::Partial, Error> {
         let path = [
             "collections",
             self.collection_name.as_ref(),
@@ -124,7 +75,7 @@ impl<'a, T: TypesenseReq> Documents<'a, T> {
         self.client().patch((document, path)).await
     }
 
-    #[instrument]
+    #[instrument(skip(self))]
     pub async fn delete(&self, id: &str) -> Result<T, Error> {
         let path = [
             "collections",
@@ -136,18 +87,18 @@ impl<'a, T: TypesenseReq> Documents<'a, T> {
         self.client().delete(path).await
     }
 
-    #[instrument(skip(documents))]
+    #[instrument(skip(self, documents))]
     pub fn batch_create(
         &'a self,
-        documents: &'a [T::Model],
+        documents: &'a [T::Partial],
     ) -> DocumentBatchAction<'a, T, impl 'a + Future<Output = BatchResult>> {
         DocumentBatchAction::new(self, None, documents, self.batch_action([], documents))
     }
 
-    #[instrument(skip(documents))]
+    #[instrument(skip(self, documents))]
     pub fn batch_upsert(
         &'a self,
-        documents: &'a [T::Model],
+        documents: &'a [T::Partial],
     ) -> DocumentBatchAction<'a, T, impl 'a + Future<Output = BatchResult>> {
         let action = Some("upsert");
 
@@ -159,10 +110,10 @@ impl<'a, T: TypesenseReq> Documents<'a, T> {
         )
     }
 
-    #[instrument(skip(documents))]
+    #[instrument(skip(self, documents))]
     pub fn batch_update(
         &'a self,
-        documents: &'a [T::Model],
+        documents: &'a [T::Partial],
     ) -> DocumentBatchAction<'a, T, impl 'a + Future<Output = BatchResult>> {
         let action = Some("update");
 
@@ -174,10 +125,10 @@ impl<'a, T: TypesenseReq> Documents<'a, T> {
         )
     }
 
-    #[instrument(skip(documents))]
+    #[instrument(skip(self, documents))]
     pub fn batch_emplace(
         &'a self,
-        documents: &'a [T::Model],
+        documents: &'a [T::Partial],
     ) -> DocumentBatchAction<'a, T, impl 'a + Future<Output = BatchResult>> {
         let action = Some("emplace");
 
@@ -189,11 +140,11 @@ impl<'a, T: TypesenseReq> Documents<'a, T> {
         )
     }
 
-    #[instrument(skip(documents))]
+    #[instrument(skip(self, documents))]
     async fn batch_action<const N: usize>(
         &'a self,
         query: QueryPair<'a, N>,
-        documents: &'a [T::Model],
+        documents: &'a [T::Partial],
     ) -> BatchResult {
         let path = [
             "collections",

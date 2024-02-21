@@ -58,6 +58,7 @@ impl RenameRule {
         })
     }
 
+    #[allow(dead_code)]
     /// Apply a renaming rule to an enum variant, returning the version expected in the source.
     pub fn apply_to_variant(&self, variant: &str) -> String {
         match *self {

@@ -16,10 +16,12 @@ pub fn is_object_array(f: &Field) -> bool {
         .unwrap_or(false)
 }
 
+#[allow(dead_code)]
 pub fn fields_has_id(fields: &[Field]) -> bool {
     fields.iter().any(field_is_id)
 }
 
+#[allow(dead_code)]
 pub fn field_is_id(field: &Field) -> bool {
     field.raw_ident == "id" || field.rename.as_ref().map(|r| r == "id").unwrap_or_default()
 }
@@ -38,15 +40,24 @@ pub struct Field {
     pub index: Option<bool>,
     pub sort: Option<bool>,
     pub rename: Option<String>,
+
+    // custom type for typesense
+    #[darling(rename = "ty")]
     pub custom_type: Option<String>,
+    // field is an optional field in typesense
     pub optional: Option<bool>,
 
+    // this field is the default sorting field
     #[darling(default)]
     pub default_sorting_field: bool,
     #[darling(default)]
     pub flatten: bool,
     #[darling(default)]
     pub skip: bool,
+
+    // field is an object and has its own schema
+    #[darling(default)]
+    pub schema: bool,
 
     #[darling(skip, default)]
     pub is_option: Option<syn::Type>,

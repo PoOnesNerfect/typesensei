@@ -1,32 +1,25 @@
-use self::struct_parser::StructParser;
-use super::{
-    case, case::RenameRule, is_object, is_object_array, translate::impl_typesense::SchemaName,
-    Field, Translator,
-};
+use super::{case::RenameRule, is_object, is_object_array, Field, Implementor};
 use darling::{export::NestedMeta, Error, FromDeriveInput, FromMeta, Result};
 use proc_macro2::TokenStream;
 use proc_macro_error::abort;
-use quote::{format_ident, quote};
+use quote::quote;
 use syn::{
     punctuated::Punctuated, DeriveInput, GenericArgument, GenericParam, Generics, Ident, Meta,
-    Path, PathArguments, Type, WhereClause, WherePredicate,
+    Path, PathArguments, Type, Visibility, WhereClause, WherePredicate,
 };
-
-pub mod struct_parser;
 
 #[derive(FromDeriveInput)]
 #[darling(supports(struct_named), attributes(serde, typesensei))]
 pub struct Derived {
+    vis: Visibility,
     ident: Ident,
     generics: Generics,
     data: darling::ast::Data<(), Field>,
 
     #[darling(rename = "crate", default = "default_serde")]
     serde: String,
-    model: Option<String>,
-    query: Option<String>,
-    rename: Option<String>,
-    rename_with: Option<syn::Path>,
+    #[darling(rename = "rename")]
+    _rename: Option<String>,
     rename_all: Option<String>,
     symbols_to_index: Option<SymbolsToIndex>,
     #[darling(default)]
@@ -101,18 +94,16 @@ fn default_serde() -> String {
     "::serde".to_owned()
 }
 
-impl Translator {
-    pub fn from_derived(input: &DeriveInput) -> Result<Translator> {
+impl Implementor {
+    pub fn from_derived(input: &DeriveInput) -> Result<Implementor> {
         let Derived {
+            vis,
             ident,
             generics,
             data,
 
             serde,
-            model,
-            query,
-            rename,
-            rename_with,
+            _rename,
             rename_all,
             symbols_to_index,
             mut enable_nested_fields,
@@ -149,33 +140,8 @@ impl Translator {
             &serde,
         );
 
-        let model = StructParser::new(
-            &serde,
-            &ident,
-            &model,
-            format_ident!("Model"),
-            &generics,
-            &fields,
-        );
-
-        let query = StructParser::new(
-            &serde,
-            &ident,
-            &query,
-            format_ident!("Query"),
-            &generics,
-            &fields,
-        );
-
-        let schema_name = if let Some(fn_name) = rename_with {
-            SchemaName::Fn(fn_name)
-        } else if let Some(name) = rename {
-            SchemaName::Static(name)
-        } else {
-            SchemaName::Static(case::RenameRule::SnakeCase.apply_to_variant(&ident.to_string()))
-        };
-
         Ok(Self {
+            vis,
             serde,
             rename_all,
             case,
@@ -185,9 +151,6 @@ impl Translator {
             main_fields,
             main_generics,
 
-            model,
-            query,
-            schema_name,
             enable_nested_fields,
             extra_fields,
             symbols_to_index,
@@ -210,36 +173,41 @@ fn mark_field_types(generics: &Generics, fields: &mut Vec<Field>) {
 
     for field in fields {
         if let Type::Path(path) = &field.ty {
-            let path = &path.path;
-            for seg in &path.segments {
-                // object array types must be Vec
-                if is_object_array(field) && seg.ident != "Vec" {
-                    abort!(path, "'object[]' field must be of type Vec<_>")
-                }
+            // we only care about the last segment
+            // i.e. std::vec::Vec<_> -> Vec<_>
+            // i.e. std::option::Option<_> -> Option<_>
+            let Some(seg) = &path.path.segments.last() else {
+                continue;
+            };
 
-                if seg.ident == "Option" || seg.ident == "Vec" {
-                    if let PathArguments::AngleBracketed(args) = &seg.arguments {
-                        let args = &args.args;
-                        if let Some(GenericArgument::Type(Type::Path(path))) = args.first() {
-                            if let Some(ident) = path.path.get_ident() {
-                                if generic_types.contains(&ident) {
-                                    field.generic_type.replace(ident.clone());
-                                }
-                            }
+            // object array types must be Vec
+            if is_object_array(field) && seg.ident != "Vec" {
+                abort!(path, "'object[]' field must be of type Vec<_>")
+            }
 
-                            if seg.ident == "Option" {
-                                field.is_option.replace(Type::Path(path.clone()));
-                            }
+            if seg.ident == "Option" || seg.ident == "Vec" {
+                let PathArguments::AngleBracketed(args) = &seg.arguments else {
+                    unreachable!("Option and Vec must have angle bracketed arguments")
+                };
 
-                            // if the type is Vec, then store the inner type
-                            if seg.ident == "Vec" {
-                                field.is_vec.replace(Type::Path(path.clone()));
-                            }
+                if let Some(GenericArgument::Type(Type::Path(path))) = args.args.first() {
+                    if let Some(ident) = path.path.get_ident() {
+                        if generic_types.contains(&ident) {
+                            field.generic_type.replace(ident.clone());
                         }
                     }
-                } else if generic_types.contains(&&seg.ident) {
-                    field.generic_type.replace(seg.ident.clone());
+
+                    if seg.ident == "Option" {
+                        field.is_option.replace(Type::Path(path.clone()));
+                    }
+
+                    // if the type is Vec, then store the inner type
+                    if seg.ident == "Vec" {
+                        field.is_vec.replace(Type::Path(path.clone()));
+                    }
                 }
+            } else if generic_types.contains(&&seg.ident) {
+                field.generic_type.replace(seg.ident.clone());
             }
         }
     }

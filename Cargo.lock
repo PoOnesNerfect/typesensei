@@ -1323,7 +1323,6 @@ version = "0.1.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "7f2e2c7b486bd50790ae6ed1134b1d645dd19c3d7ef33a46528eb000c9086ab1"
 dependencies = [
- "thiserror",
  "tosserror-derive",
 ]
 
@@ -1434,6 +1433,7 @@ dependencies = [
  "serde_json",
  "serde_with",
  "sha2",
+ "thiserror",
  "tokio",
  "tosserror",
  "tracing",

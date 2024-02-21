@@ -6,9 +6,8 @@ use crate::{
         keys::Keys,
         CollectionResponse,
     },
-    Error,
-    __priv::TypesenseReq,
     error::*,
+    Error, Typesense,
 };
 use bytes::Bytes;
 use derivative::Derivative;
@@ -86,26 +85,12 @@ impl Client {
         self.get(["aliases"]).await
     }
 
-    pub fn collection<'a, T: TypesenseReq>(&'a self) -> Collection<'a, T> {
-        Collection::new(self)
+    pub fn collection<'a, T: Typesense>(&'a self, collection_name: &'a str) -> Collection<'a, T> {
+        Collection::new(self, collection_name)
     }
 
-    pub fn collection_with_name<'a, T: TypesenseReq>(
-        &'a self,
-        collection_name: &'a str,
-    ) -> Collection<'a, T> {
-        Collection::new_with_name(self, collection_name)
-    }
-
-    pub fn documents<'a, T: TypesenseReq>(&'a self) -> Documents<'a, T> {
-        Documents::new(self)
-    }
-
-    pub fn documents_with_collection<'a, T: TypesenseReq>(
-        &'a self,
-        collection_name: &'a str,
-    ) -> Documents<'a, T> {
-        Documents::new_with_name(self, collection_name)
+    pub fn documents<'a, T: Typesense>(&'a self, collection_name: &'a str) -> Documents<'a, T> {
+        Documents::new(self, collection_name)
     }
 }
 

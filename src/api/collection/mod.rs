@@ -1,51 +1,45 @@
-use crate::{Client, Error, __priv::TypesenseReq, schema::OwnedField};
-use std::{borrow::Cow, iter::once, marker::PhantomData};
+use crate::{schema::OwnedField, Client, Error, Typesense};
+use std::{iter::once, marker::PhantomData};
 use tracing::instrument;
 
-use super::{CollectionResponse, CollectionUpdate};
+use super::{documents::Documents, CollectionResponse, CollectionUpdate};
 
 const PATH: &'static str = "collections";
 
 #[derive(Debug, Clone)]
-pub struct Collection<'a, T: TypesenseReq> {
+pub struct Collection<'a, T: Typesense> {
     client: &'a Client,
-    collection_name: Cow<'a, str>,
+    collection_name: &'a str,
     _phantom: PhantomData<T>,
 }
 
-impl<'a, T: TypesenseReq> Collection<'a, T> {
-    pub(crate) fn new(client: &'a Client) -> Collection<'a, T> {
+impl<'a, T: Typesense> Collection<'a, T> {
+    pub(crate) fn new(client: &'a Client, collection_name: &'a str) -> Collection<'a, T> {
         Self {
             client,
-            collection_name: Cow::Owned(T::schema_name()),
+            collection_name,
             _phantom: PhantomData,
         }
     }
 
-    pub(crate) fn new_with_name(client: &'a Client, collection_name: &'a str) -> Collection<'a, T> {
-        Self {
-            client,
-            collection_name: Cow::Borrowed(collection_name),
-            _phantom: PhantomData,
-        }
+    #[instrument(skip(self))]
+    pub async fn documents(&self) -> Documents<'_, T> {
+        Documents::new(self.client, self.collection_name.as_ref())
     }
 
-    #[instrument]
+    #[instrument(skip(self))]
     pub async fn retreive(&self) -> Result<CollectionResponse, Error> {
         self.client.get([PATH, self.collection_name.as_ref()]).await
     }
 
-    #[instrument]
+    #[instrument(skip(self))]
     pub async fn create(&self) -> Result<CollectionResponse, Error> {
         self.client
-            .post((
-                &T::schema().with_name(self.collection_name.clone().into_owned()),
-                once(PATH),
-            ))
+            .post((&T::schema(self.collection_name.as_ref()), once(PATH)))
             .await
     }
 
-    #[instrument]
+    #[instrument(skip(self))]
     pub async fn update(&self, fields: Vec<OwnedField>) -> Result<CollectionUpdate, Error> {
         self.client
             .patch((
@@ -55,7 +49,7 @@ impl<'a, T: TypesenseReq> Collection<'a, T> {
             .await
     }
 
-    #[instrument]
+    #[instrument(skip(self))]
     pub async fn delete(&self) -> Result<CollectionResponse, Error> {
         self.client
             .delete([PATH, self.collection_name.as_ref()])

@@ -1,5 +1,5 @@
 use super::{super::case::RenameRule, Field};
-use crate::implementation::{field_is_id, ts, SymbolsToIndex, TypesenseFields};
+use crate::implementation::{ts, SymbolsToIndex, TypesenseFields};
 use darling::ToTokens;
 use quote::quote;
 use syn::{
@@ -11,9 +11,6 @@ pub struct ImplTypesense<'a> {
     pub ident: &'a Ident,
     pub generics: &'a Generics,
     pub id_type: &'a Type,
-    pub model_associated_type: &'a Type,
-    pub query_associated_type: &'a Type,
-    pub schema_name: &'a SchemaName,
     pub enable_nested_fields: bool,
     pub fields: &'a Vec<Field>,
     pub case: &'a RenameRule,
@@ -27,9 +24,6 @@ impl<'a> ToTokens for ImplTypesense<'a> {
             ident,
             generics,
             id_type: _,
-            model_associated_type,
-            query_associated_type: _,
-            schema_name,
             enable_nested_fields,
             fields,
             case,
@@ -37,7 +31,7 @@ impl<'a> ToTokens for ImplTypesense<'a> {
             symbols_to_index,
         } = self;
 
-        let (impl_generics, type_generics, where_clause) = generics.split_for_impl();
+        let (impl_generics, ty_generics, where_clause) = generics.split_for_impl();
 
         let fields_impl = FieldImpl::new(fields, case /*, id_type */);
         let extra_fields_impl = ExtraFieldImpl::new(extra_fields);
@@ -60,20 +54,16 @@ impl<'a> ToTokens for ImplTypesense<'a> {
         });
 
         tokens.extend(quote! {
-            impl #impl_generics ::typesensei::Typesense for #ident #type_generics
+            impl #impl_generics ::typesensei::Typesense for #ident #ty_generics
             #where_clause
             {
-                type Model = #model_associated_type;
-                // type Query = #query_associated_type;
-
-                #[inline(always)]
-                fn schema_name() -> String {
-                    #schema_name
+                fn partial() -> Self::Partial {
+                    Default::default()
                 }
 
-                fn schema() -> typesensei::schema::CollectionSchema<'static> {
-                    use ::typesensei::{Typesense, traits::TypesenseField};
-                    ::typesensei::schema::CollectionSchema::new(Self::schema_name())
+                fn schema<'a>(collection_name: &'a str) -> ::typesensei::schema::CollectionSchema<'a> {
+                    use ::typesensei::{Typesense, TypesenseField};
+                    ::typesensei::schema::CollectionSchema::new(collection_name)
                     #enable_nested_fields
                     #fields_impl
                     #extra_fields_impl
@@ -81,20 +71,6 @@ impl<'a> ToTokens for ImplTypesense<'a> {
                 }
             }
         });
-    }
-}
-
-pub enum SchemaName {
-    Static(String),
-    Fn(syn::Path),
-}
-
-impl ToTokens for SchemaName {
-    fn to_tokens(&self, tokens: &mut proc_macro2::TokenStream) {
-        match self {
-            SchemaName::Static(name) => tokens.extend(quote!(#name .to_owned())),
-            SchemaName::Fn(fn_name) => tokens.extend(quote!({#fn_name ()})),
-        }
     }
 }
 
@@ -119,11 +95,82 @@ impl<'a> ToTokens for FieldImpl<'a> {
         for field in self.fields {
             if field.flatten {
                 impl_flatten_field(&field, tokens);
+            } else if field.schema {
+                impl_schema_field(&field, &self.case, tokens);
             } else {
                 impl_field(&field, &self.case, tokens);
             }
         }
     }
+}
+
+fn impl_field(field: &Field, case: &RenameRule, tokens: &mut proc_macro2::TokenStream) {
+    let Field {
+        raw_ident,
+        ty,
+        index,
+        sort,
+        facet,
+        is_option,
+        default_sorting_field,
+        rename,
+        custom_type,
+        optional,
+        ..
+    } = field;
+
+    // if field_is_id(field) {
+    //     return;
+    // }
+
+    let name = if let Some(name) = rename {
+        name.to_owned()
+    } else {
+        case.apply_to_field(&raw_ident.to_string())
+    };
+
+    let ty = custom_type
+        .as_ref()
+        .map(|t| quote!(#t))
+        .unwrap_or_else(|| quote!(< #ty >::TYPE));
+
+    let should_be_optional = index.map(|b| !b).unwrap_or(false);
+    let optional = optional.unwrap_or(false) || is_option.is_some() || should_be_optional;
+
+    impl_field_inner(
+        tokens,
+        &name,
+        ty,
+        index,
+        facet,
+        sort,
+        optional,
+        *default_sorting_field,
+    );
+}
+
+fn impl_schema_field(field: &Field, case: &RenameRule, tokens: &mut proc_macro2::TokenStream) {
+    let Field {
+        raw_ident,
+        rename,
+        is_option,
+        ty,
+        ..
+    } = field;
+
+    let name = if let Some(name) = rename {
+        name.to_owned()
+    } else {
+        case.apply_to_field(&raw_ident.to_string())
+    };
+
+    let ty = is_option.as_ref().map(|t| t).unwrap_or_else(|| ty);
+
+    tokens.extend(quote!(.schema_field));
+
+    Paren::default().surround(tokens, |parens| {
+        parens.extend(quote!(#name, <#ty as Typesense>::schema("")));
+    });
 }
 
 fn impl_flatten_field(field: &Field, tokens: &mut proc_macro2::TokenStream) {
@@ -143,11 +190,11 @@ fn impl_flatten_field(field: &Field, tokens: &mut proc_macro2::TokenStream) {
         Brace::default().surround(parens, |braces| {
             if let Some(ty) = generic_type.as_ref() {
                 braces.extend(quote! {
-                    let mut schema = <#ty>::schema();
+                    let mut schema = <#ty>::schema("");
                 });
             } else {
                 braces.extend(quote! {
-                    let mut schema = <#ty>::schema();
+                    let mut schema = <#ty>::schema("");
                 });
             }
 
@@ -195,51 +242,6 @@ fn impl_flatten_field(field: &Field, tokens: &mut proc_macro2::TokenStream) {
             });
         });
     });
-}
-
-fn impl_field(field: &Field, case: &RenameRule, tokens: &mut proc_macro2::TokenStream) {
-    if field_is_id(field) {
-        return;
-    }
-
-    let Field {
-        raw_ident,
-        ty,
-        index,
-        sort,
-        facet,
-        is_option,
-        default_sorting_field,
-        rename,
-        custom_type,
-        optional,
-        ..
-    } = field;
-
-    let name = if let Some(name) = rename {
-        name.to_owned()
-    } else {
-        case.apply_to_field(&raw_ident.to_string())
-    };
-
-    let ty = custom_type
-        .as_ref()
-        .map(|t| quote!(#t))
-        .unwrap_or_else(|| quote!(< #ty >::field_type()));
-
-    let should_be_optional = index.map(|b| !b).unwrap_or(false);
-    let optional = optional.unwrap_or(false) || is_option.is_some() || should_be_optional;
-
-    impl_field_inner(
-        tokens,
-        &name,
-        ty,
-        index,
-        facet,
-        sort,
-        optional,
-        *default_sorting_field,
-    );
 }
 
 struct ExtraFieldImpl<'a> {
@@ -305,7 +307,7 @@ fn impl_field_inner(
 
     tokens.extend(quote! {
         .field(::typesensei::schema::Field {
-            name: #name,
+            name: ::std::borrow::Cow::Borrowed(#name),
             field_type: #ty,
             facet: #facet,
             index: #index,
