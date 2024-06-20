@@ -1,6 +1,6 @@
 [package]
 name = "typesensei"
-version = "0.1.16"
+version = "0.2.0"
 edition = "2021"
 authors = ["PoOnesNerfect <jack.y.l.dev@gmail.com>"]
 description = "Typesense client library"
@@ -8,14 +8,14 @@ documentation = "https://docs.rs/typesensei/"
 repository = "https://github.com/PoOnesNerfect/typesensei"
 homepage = "https://github.com/PoOnesNerfect/typesensei"
 license = "MIT"
-readme = "../README.md"
+readme = "README.md"
 categories = ["web-programming", "api-bindings"]
 keywords = ["typesense"]
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-typesensei_derive = { version = "=0.1.16", path = "typesensei_derive" }
+typesensei_derive = { version = "=0.2.0", path = "typesensei_derive" }
 
 bytes = { version = "1.6" }
 derivative = { version = "2.2.0" }
